@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Scam City</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="icon" href="img/world-wide-web.png" type="image/gif" sizes="16x16">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.16.1/js/jquery.terminal.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.16.1/css/jquery.terminal.min.css" rel="stylesheet" />
+</head>
+
+<body>
+    <canvas id="ctx"></canvas>
+    <canvas id="c"></canvas>
+    <div id="content"></div>
+
+    <div id="loadingScreen">
+        <span id="progressCounter">0%</span>
+        <div id="progressBar"></div>
+    </div>
+    <div class="info"></div>
+    <!-- <div class="skills">
+        <div class="skills-item bruteforce"></div>
+        <div class="skills-item phishing"></div>
+        <div class="skills-item dns"></div>
+        <div class="skills-item eavesdropping"></div>
+        <div class="skills-item cookie"></div>
+        <div class="skills-item ddos"></div>
+        <div class="skills-item keylogger"></div>
+        <div class="skills-item xss"></div>
+        <div class="skills-item trojan"></div>
+        <div class="skills-item socialengineering"></div>
+        <div class="skills-item malware"></div>
+        <div class="skills-item mitm"></div>
+    </div> -->
+    <div id="shell">
+        <div id="shell-border">
+            <div id="shell-text">
+                &#x1F346; Command Prompt
+            </div>
+            <div id="shell-icons">
+                <span class="shell-h">&#8211</span>
+                <span class="shell-h">&#9633</span>
+                <span id="shell-exit">&times</span>
+            </div>
+        </div>
+        <div id="terminal"></div>
+    </div>
+
+</body>
+<script id="template" type="notjs">
+    <div class="scene"></div>
+    <div class="description">$</div>
+</script>
+<script type="text/javascript" src="./js/three.js"></script>
+<script type="text/javascript" src="./js/MapControls.js"></script>
+<script type="text/javascript" src="./js/inflate.min.js"></script>
+<script type="text/javascript" src="./js/stats.min.js"></script>
+<script type="text/javascript" src="./js/OBJLoader.js"></script>
+<script type="text/javascript" src="./js/GLTFLoader.js"></script>
+<script type="text/javascript" src="./js/OrbitControls.js"></script>
+
+<script type="text/javascript" src="./js/weeb/mmdparser.min.js"></script>
+<script type="text/javascript" src="./js/weeb/ammo.js"></script>
+<script type="text/javascript" src="./js/weeb/MMDLoader.js"></script>
+<script type="text/javascript" src="./js/weeb/OutlineEffect.js"></script>
+<script type="text/javascript" src="./js/weeb/CCDIKSolver.js"></script>
+<script type="text/javascript" src="./js/weeb/MMDPhysics.js"></script>
+<script type="text/javascript" src="./js/weeb/MMDAnimationHelper.js"></script>
+
+<script type="text/javascript" src="./js/main.js"></script>
+
+</html>
