@@ -277,7 +277,7 @@ function addItem(item) {
         scene.background = new THREE.Color(0x333333);
 
         var loader = new THREE.GLTFLoader();
-        loader.load(`models/items/${item}.gltf`, (gltf) => {
+        loader.load(`items/${item}.gltf`, (gltf) => {
             let bbox = new THREE.Box3().setFromObject(gltf.scene);
             camera.position.z = (bbox.max.z - bbox.min.z) * 2;
             camera.position.y = (bbox.max.y - bbox.min.y) * 2;
