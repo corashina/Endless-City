@@ -13,32 +13,32 @@
 </head>
 
 <body>
-    <canvas id="ctx"></canvas>
-    <canvas id="c"></canvas>
-    <div id="content"></div>
+    <canvas></canvas>
+    <canvas class="inventory"></canvas>
+    <div class="content"></div>
 
-    <div id="loadingScreen">
-        <span id="progressCounter">0%</span>
-        <div id="progressBar"></div>
+    <div class="loadingScreen">
+        <span class="progressCounter">0%</span>
+        <div class="progressBar"></div>
     </div>
     <div class="info"></div>
 
-    <div id="shell">
-        <div id="shell-border">
-            <div id="shell-text">
+    <div class="shell">
+        <div class="shell-border">
+            <div class="shell-text">
                 &#x1F346; Command Prompt
             </div>
-            <div id="shell-icons">
+            <div class="shell-icons">
                 <span class="shell-h">&#8211</span>
                 <span class="shell-h">&#9633</span>
-                <span id="shell-exit">&times</span>
+                <span class="shell-exit">&times</span>
             </div>
         </div>
-        <div id="terminal"></div>
+        <div class="terminal"></div>
     </div>
 
 </body>
-<script id="template" type="notjs">
+<script class="template" type="notjs">
     <div class="scene"></div>
     <div class="description">$</div>
 </script>
@@ -49,15 +49,6 @@
 <script type="text/javascript" src="js/OBJLoader.js"></script>
 <script type="text/javascript" src="js/GLTFLoader.js"></script>
 <script type="text/javascript" src="js/OrbitControls.js"></script>
-
-<script type="text/javascript" src="./js/weeb/mmdparser.min.js"></script>
-<script type="text/javascript" src="./js/weeb/ammo.js"></script>
-<script type="text/javascript" src="./js/weeb/MMDLoader.js"></script>
-<script type="text/javascript" src="./js/weeb/OutlineEffect.js"></script>
-<script type="text/javascript" src="./js/weeb/CCDIKSolver.js"></script>
-<script type="text/javascript" src="./js/weeb/MMDPhysics.js"></script>
-<script type="text/javascript" src="./js/weeb/MMDAnimationHelper.js"></script>
-
 <script type="text/javascript" src="./js/main.js"></script>
 
 </html>

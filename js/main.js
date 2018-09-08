@@ -7,23 +7,26 @@ var camera, scene, controls, renderer, INTERSECTED, raycaster, container, stats,
 var carList = [];
 var scene_home, camera_home;
 
-var music;
-var shell = document.getElementById("shell");
-var info = document.getElementsByClassName("info")[0];
+var music, light;
+var shell = document.querySelector(".shell");
+var info = document.querySelector(".info");
 
 var clock = new THREE.Clock();
-var helper;
 
 var canvasInv;
 var scenesInv = [];
 var loaderInv;
 
 var inventory = {}
+var clusterNames = [
+    'factory', 'house2', 'shoparea', 'house', 'apartments', 'shops', 'fastfood', 'house3', 'stadium', 'gas', 'supermarket', 'coffeeshop', 'residence', 'bus', 'park'
+]
 
+var directions = [1, -0.5, 2, 0.5]
 var current = true;
 
-init();
-home();
+initCity();
+initHome();
 initInventory();
 animate();
 
@@ -33,31 +36,28 @@ const closePopup = (e) => {
     e.style.opacity = e.style.opacity == 1 ? 0 : e.style.opacity;
 }
 
-function init() {
+function initCity() {
     stats = new Stats();
     stats.showPanel(0);
     document.body.appendChild(stats.dom);
 
-    var progressBar = document.getElementById("progressBar");
-    var progressCounter = document.getElementById("progressCounter");
+    var progressBar = document.querySelector(".progressBar");
+    var progressCounter = document.querySelector(".progressCounter");
 
     var manager = new THREE.LoadingManager();
     manager.onProgress = (url, loaded, total) => {
         if (loaded / total > lastLoad) {
-            let percent = Math.round((loaded / total * 100 + 1)) + '%'
+            let percent = Math.round((loaded / total * 100)) + '%'
             progressBar.style.width = percent;
             progressCounter.textContent = percent;
         }
         lastLoad = loaded / total;
     };
-    manager.onLoad = () => { document.getElementById("loadingScreen").style.display = "none" };
+    manager.onLoad = () => { document.querySelector(".loadingScreen").style.display = "none" };
 
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
-    renderer = new THREE.WebGLRenderer({
-        canvas: document.getElementById('ctx'),
-        antialias: true,
-    });
+    renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), antialias: true });
     renderer.shadowMap.enabled = true;
     renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -65,14 +65,14 @@ function init() {
     scene.background = new THREE.Color(0x000000);
     scene.fog = new THREE.Fog(new THREE.Color(0x000000), 200, 300);
 
-    camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 50, 300);
+    camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 50, 200);
     camera.position.set(10, 100, 10);
 
     controls = new THREE.MapControls(camera);
     loader = new THREE.ObjectLoader(manager);
 
     const displayInfo = ({ data }) => {
-        let info = document.getElementsByClassName("info")[0];
+        let info = document.querySelectorAll(".info")[0];
         if (data != null) info.innerHTML =
             `
         <p>${data.name}</p>
@@ -108,44 +108,35 @@ function init() {
         });
     };
 
-    let clusters = [
-        { x: 1, z: 0, cluster: "road" },
-        { x: 1, z: 0, cluster: "cars", cars: true },
+    clusters = generateCluster(0, 0);
 
-        { x: -2, z: -2, cluster: "factory", direction: SOUTH },
-        { x: -1, z: -2, cluster: "house2", direction: SOUTH },
-        { x: 0, z: -2, cluster: "shoparea", direction: EAST },
-        { x: 1, z: -2, cluster: "house", direction: EAST },
+    clusters.forEach((cluster) => { clusterLoader(cluster) });
 
-        { x: -2, z: -1, cluster: "apartments", direction: SOUTH },
-        { x: -1, z: -1, cluster: "shops", direction: SOUTH },
-        { x: 0, z: -1, cluster: "fastfood", direction: EAST },
-        { x: 1, z: -1, cluster: "house3", direction: SOUTH },
+    clusters = generateCluster(1, 1);
 
-        { x: -2, z: 0, cluster: "stadium", direction: WEST },
-        { x: -1, z: 0, cluster: "gas", direction: EAST },
-        { x: 0, z: 0, cluster: "supermarket", direction: SOUTH },
-        { x: 1, z: 0, cluster: "coffeeshop", direction: EAST },
+    clusters.forEach((cluster) => { clusterLoader(cluster) });
 
-        { x: -2, z: 1, cluster: "residence", direction: WEST },
-        { x: -1, z: 1, cluster: "bus", direction: WEST },
-        { x: 0, z: 1, cluster: "park", direction: EAST },
-        { x: 1, z: 1, cluster: "house", direction: WEST }
-    ];
+    clusters = generateCluster(0, 1);
 
     clusters.forEach((cluster) => { clusterLoader(cluster) });
 
     // Lights
+    light = new THREE.AmbientLight(0x888888);
+    light.intensity = 0.5;
+    scene.add(light);
 
-    scene.add(new THREE.AmbientLight(0x090909));
-
-    var light = new THREE.PointLight(0xADD8E6, 1, 200);
-    light.position.set(-20, 50, -20);
+    light = new THREE.DirectionalLight(0xFFFFFF);
+    light.position.set(60, 50, 60);
     light.castShadow = true;
-    light.shadow.mapSize.width = 512;
-    light.shadow.mapSize.height = 512;
-    light.shadow.camera.near = 1;
-    light.shadow.camera.far = 150;
+    light.intensity = 0.7;
+    light.shadow.mapSize.width = 4096;
+    light.shadow.mapSize.height = 4096;
+    light.shadow.camera.near = 0;
+    light.shadow.camera.far = 350;
+    light.shadow.camera.left = -200;
+    light.shadow.camera.right = 200;
+    light.shadow.camera.top = 200;
+    light.shadow.camera.bottom = -100;
     scene.add(light);
 
     listener = new THREE.AudioListener();
@@ -153,7 +144,6 @@ function init() {
 
     // create the PositionalAudio object (passing in the listener)
     var sound = new THREE.PositionalAudio(listener);
-
 
     // load a sound and set it as the PositionalAudio object's buffer
     audioLoader = new THREE.AudioLoader();
@@ -165,11 +155,7 @@ function init() {
     scene.add(sound);
 
 
-    window.addEventListener("resize", e => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }, false);
+    window.addEventListener("resize", resize, false);
 
     document.addEventListener("mousemove", e => {
         event.preventDefault();
@@ -185,10 +171,10 @@ function init() {
             controls.enabled = true;
         } else if (e.keyCode == 69) {
             current = !current;
-            if (document.getElementById('content').style.visibility != "visible") {
-                document.getElementById('content').style.visibility = "visible";
+            if (document.querySelector('.content').style.visibility != "visible") {
+                document.querySelector('.content').style.visibility = "visible";
             }
-            else document.getElementById('content').style.visibility = "hidden"
+            else document.querySelector('.content').style.visibility = "hidden"
         } else if (e.keyCode == 220) {
 
         } else if (e.keyCode == 9) {
@@ -197,13 +183,6 @@ function init() {
             let temp_camera = camera;
             let temp_controls = controls;
             if (scene != scene_home) {
-                if (sound.isPlaying) {
-                    sound.pause();
-                    music.play();
-                } else {
-                    sound.play();
-                    music.pause();
-                }
                 scene = scene_home;
                 camera = camera_home;
                 controls = controls_home;
@@ -228,8 +207,8 @@ function init() {
                     INTERSECTED.userData.state = "closed";
                 }
             } else if (INTERSECTED.userData.terminal) {
-                document.getElementById("shell").style.visibility = "visible";
-                document.getElementById("shell").style.opacity = "1";
+                document.querySelector(".shell").style.visibility = "visible";
+                document.querySelector(".shell").style.opacity = "1";
                 controls.enabled = false;
             } else if (INTERSECTED.userData.name) {
                 new Audio("sounds/click.mp3").play();
@@ -245,8 +224,8 @@ function init() {
 
 function initInventory() {
     for (var i = 0; i < 20; i++) {
-        let template = document.getElementById("template").text;
-        let content = document.getElementById("content");
+        let template = document.querySelector(".template").text;
+        let content = document.querySelector(".content");
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x333333);
         let element = document.createElement("div");
@@ -254,7 +233,7 @@ function initInventory() {
         element.innerHTML = template.replace('$', i);
         scene.userData.element = element.querySelector(".scene");
         content.appendChild(element);
-        var camera = new THREE.PerspectiveCamera(50, 1, 1, 1000);
+        var camera = new THREE.PerspectiveCamera(50, 1, 1, 500);
         scene.userData.camera = camera;
         let controls = new THREE.OrbitControls(scene.userData.camera, scene.userData.element);
         controls.enablePan = false;
@@ -269,8 +248,8 @@ function addItem(item) {
     if (!inventory[item]) {
         let scene = scenesInv[Object.keys(inventory).length];
         inventory[item] = 1;
-        document.getElementsByClassName('list-item')[Object.keys(inventory).length - 1].children[1].textContent = `${item} - ${inventory[item]}`;
-        document.getElementsByClassName('list-item')[Object.keys(inventory).length - 1].className += " item-" + item
+        document.querySelectorAll('.list-item')[Object.keys(inventory).length - 1].children[1].textContent = `${item} - ${inventory[item]}`;
+        document.querySelectorAll('.list-item')[Object.keys(inventory).length - 1].className += " item-" + item
         let camera = scene.userData.camera
         let controls = scene.userData.controls
         scene.background = new THREE.Color(0x333333);
@@ -302,94 +281,53 @@ function addItem(item) {
             (error) => { console.log(error); }
         );
     } else {
-        document.getElementsByClassName('item-' + item)[0].children[1].textContent = `${item} - ${inventory[item] + 1}`;
+        document.querySelectorAll('.item-' + item)[0].children[1].textContent = `${item} - ${inventory[item] + 1}`;
         inventory[item] += 1;
     }
 }
 
-function home() {
+function initHome() {
     scene_home = new THREE.Scene();
     scene_home.background = new THREE.Color(0x000000);
 
-    loader.load("js/clusters/home.json", obj => {
-        scene_home.add(obj);
-    })
-
-    music = new THREE.PositionalAudio(listener)
-    audioLoader.load('sounds/inmymind.mp3', function (buffer) {
-        music.setBuffer(buffer);
-        music.setRefDistance(20);
-    });
-    scene_home.add(music);
-
-    var modelFile = './js/weeb/miku_v2.pmd';
-    var vmdFiles = ['js/weeb/wavefile_v2.vmd'];
-
-    helper = new THREE.MMDAnimationHelper({
-        afterglow: 2.0,
-    });
-
-    var loaderWeeb = new THREE.MMDLoader();
-    loaderWeeb.loadWithAnimation(modelFile, vmdFiles, function (mmd) {
-        mesh = mmd.mesh;
-        mesh.castShadow = true;
-        mesh.rotation.y = Math.PI / 2;
-        mesh.position.x += 5;
-        mesh.position.z -= 7;
-        mesh.scale.set(0.15, 0.15, 0.15)
-        scene_home.add(mesh);
-        helper.add(mesh, {
-            animation: mmd.animation,
-            physics: true
-        });
-        ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
-        ikHelper.visible = false;
-        scene_home.add(ikHelper);
-        physicsHelper = helper.objects.get(mesh).physics.createHelper();
-        physicsHelper.visible = false;
-        scene_home.add(physicsHelper);
-    });
-
+    loader.load("js/clusters/home.json", obj => scene_home.add(obj))
 
     camera_home = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 5, 100);
     controls_home = new THREE.MapControls(camera_home);
     controls_home.enablePan = true;
-    controls_home.enableZoom = true;
+    controls_home.enableZoom = false;
     controls_home.enableRotate = true;
     controls_home.minDistance = 0;
     controls_home.maxDistance = 20;
     camera_home.position.set(2, 20, 2);
 }
 
-function resS() {
+function resize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 function updateSize() {
-    let canvasInv = document.getElementById("c");
+    let canvasInv = document.querySelector(".inventory");
     var width = canvasInv.clientWidth;
     var height = canvasInv.clientHeight;
-    if (canvasInv.width !== width || canvasInv.height !== height) {
-        renderer.setSize(width, height, false);
-    }
+    if (canvasInv.width !== width || canvasInv.height !== height) renderer.setSize(width, height, false);
 }
 
 function animate() {
     if (current) {
         renderer.setScissorTest(false);
-        resS();
-        render1();
-    }
-    else {
-        updateSize();
-        render2();
+        resize();
+        renderCity();
+    } else {
+        resize();
+        renderInventory();
     }
     requestAnimationFrame(animate);
 }
 
-function render1() {
+function renderCity() {
     stats.begin();
     controls.update();
     raycaster.setFromCamera(mouse, camera);
@@ -439,12 +377,11 @@ function render1() {
         INTERSECTED = null;
     }
     stats.end();
-    helper.update(clock.getDelta());
     renderer.render(scene, camera);
 }
 
 
-function render2() {
+function renderInventory() {
     updateSize();
     renderer.setClearColor(0xffffff);
     renderer.setScissorTest(false);
@@ -452,9 +389,9 @@ function render2() {
     renderer.setScissorTest(true);
     renderer.setClearColor(0xffffff);
     scenesInv.forEach(function (scene) {
-        // for (let i = 0; i < scene.children.length; i++) {
-        //     if (scene.children[i] instanceof THREE.Scene) scene.children[i].rotation.y = Date.now() * 0.001;
-        // }
+        for (let i = 0; i < scene.children.length; i++) {
+            if (scene.children[i] instanceof THREE.Scene) scene.children[i].rotation.y = Date.now() * 0.001;
+        }
         var element = scene.userData.element;
         var rect = element.getBoundingClientRect();
         if (rect.bottom < 0 || rect.top > renderer.domElement.clientHeight ||
@@ -500,7 +437,7 @@ jQuery(function ($) {
     var timer;
     var prompt;
     var string;
-    $('#terminal').terminal(function (command, term) {
+    $('.terminal').terminal(function (command, term) {
         var cmd = $.terminal.parse_command(command);
         if (cmd.name === "help") {
             prompt = term.get_prompt();
@@ -566,14 +503,14 @@ jQuery(function ($) {
 
 
 
-document.getElementById("shell-exit").addEventListener("click", (e) => { closePopup(shell); })
+document.querySelector(".shell-exit").addEventListener("click", (e) => { closePopup(shell); })
 
-dragElement(document.getElementById("shell"));
+dragElement(document.querySelector(".shell"));
 
 function dragElement(elmnt) {
     var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-    if (document.getElementById(elmnt.id + "header")) {
-        document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
+    if (document.querySelector("." + elmnt.id + "header")) {
+        document.querySelector("." + elmnt.id + "header").onmousedown = dragMouseDown;
     } else {
         elmnt.onmousedown = dragMouseDown;
     }
@@ -602,4 +539,17 @@ function dragElement(elmnt) {
         document.onmouseup = null;
         document.onmousemove = null;
     }
+}
+
+function generateCluster(xPos, zPos) {
+    let cluster = [
+        { x: 0 + xPos * 3.66, z: -1 + zPos * 3.66, cluster: "road" },
+        { x: 0 + xPos * 3.66, z: -1 + zPos * 3.66, cluster: "cars", cars: false }
+    ];
+    for (var i = 0; i > -4; i--) {
+        for (var j = 0; j > -4; j--) {
+            cluster.push({ x: i + xPos * 3.66, z: j + zPos * 3.66, cluster: clusterNames[Math.floor(Math.random() * clusterNames.length)], direction: directions[Math.floor(Math.random() * directions.length)] })
+        }
+    }
+    return cluster;
 }

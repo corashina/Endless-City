@@ -27,8 +27,8 @@ THREE.MapControls = function (object, domElement) {
   this.target = new THREE.Vector3();
 
   // How far you can dolly in and out ( PerspectiveCamera only )
-  this.minDistance = 100;
-  this.maxDistance = 200;
+  this.minDistance = 85;
+  this.maxDistance = 125;
 
   // How far you can zoom in and out ( OrthographicCamera only )
   this.minZoom = 0;
