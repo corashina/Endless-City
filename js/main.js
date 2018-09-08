@@ -71,7 +71,6 @@ function init() {
     controls = new THREE.MapControls(camera);
     loader = new THREE.ObjectLoader(manager);
 
-
     const displayInfo = ({ data }) => {
         let info = document.getElementsByClassName("info")[0];
         if (data != null) info.innerHTML =
@@ -86,7 +85,7 @@ function init() {
     };
 
     const clusterLoader = ({ x, z, cluster, direction, cars }) => {
-        loader.load("clusters/" + cluster + ".json", obj => {
+        loader.load("js/clusters/" + cluster + ".json", obj => {
             obj.position.set(obj.position.x + x * 60, 0, obj.position.z + z * 60)
             if (direction != null) obj.rotation.y = Math.PI * direction;
             switch (direction) {
@@ -312,7 +311,7 @@ function home() {
     scene_home = new THREE.Scene();
     scene_home.background = new THREE.Color(0x000000);
 
-    loader.load("./clusters/home.json", obj => {
+    loader.load("js/clusters/home.json", obj => {
         scene_home.add(obj);
     })
 
