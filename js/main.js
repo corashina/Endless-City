@@ -86,7 +86,7 @@ function init() {
     };
 
     const clusterLoader = ({ x, z, cluster, direction, cars }) => {
-        loader.load("../clusters/" + cluster + ".json", obj => {
+        loader.load("clusters/" + cluster + ".json", obj => {
             obj.position.set(obj.position.x + x * 60, 0, obj.position.z + z * 60)
             if (direction != null) obj.rotation.y = Math.PI * direction;
             switch (direction) {
