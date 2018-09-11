@@ -1,5 +1,13 @@
+@import url('https://fonts.googleapis.com/css?family=Product+Sans:400');
+
+:root {
+    --background: #1a1a1a;
+    --blueish: #4285f4;
+    --pinky: #f44263;
+}
+
 body {
-    font-family: Monospace;
+    font: 100% "Product Sans", sans-serif;
     background-color: #f0f0f0;
     margin: 0px;
     overflow: hidden;
@@ -20,44 +28,6 @@ body {
     justify-content: center;
     align-content: center;
     flex-direction: column;
-}
-
-.content {
-    position: absolute;
-    top: 0px;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(5, 1fr);
-    width: 50vw;
-    height: 100vh;
-    visibility: hidden;
-}
-
-.inventory {
-    position: fixed;
-    left: 0px;
-    width: 100%;
-    height: 100%;
-}
-
-.list-item {
-    display: inline-block;
-    position: relative;
-}
-
-.list-item .scene {
-    box-sizing: border-box;
-    width: 100%;
-    padding-top: 100%;
-    border: 3px solid #3e3e3e;
-}
-
-.list-item .description {
-    color: #fff;
-    position: absolute;
-    left: 50%;
-    bottom: 10%;
-    transform: translate(-50%, -50%)
 }
 
 .info {

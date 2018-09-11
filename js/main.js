@@ -13,21 +13,14 @@ var info = document.querySelector(".info");
 
 var clock = new THREE.Clock();
 
-var canvasInv;
-var scenesInv = [];
-var loaderInv;
-
-var inventory = {}
 var clusterNames = [
     'factory', 'house2', 'shoparea', 'house', 'apartments', 'shops', 'fastfood', 'house3', 'stadium', 'gas', 'supermarket', 'coffeeshop', 'residence', 'bus', 'park'
 ]
 
 var directions = [1, -0.5, 2, 0.5]
-var current = true;
 
 initCity();
 initHome();
-initInventory();
 animate();
 
 const closePopup = (e) => {
@@ -195,9 +188,7 @@ function initCity() {
 
     document.addEventListener("click", e => {
         if (INTERSECTED && Object.keys(INTERSECTED.userData).length > 0) {
-            if (INTERSECTED.userData.loot) {
-                addItem(INTERSECTED.userData.loot[Math.floor(Math.random() * INTERSECTED.userData.loot.length)])
-            } else if (INTERSECTED.userData.state) {
+            if (INTERSECTED.userData.state) {
                 new Audio("sounds/door.mp3").play();
                 if (INTERSECTED.userData.state === "closed") {
                     INTERSECTED.rotation.y += Math.PI / 2;
@@ -222,70 +213,6 @@ function initCity() {
     }, false);
 }
 
-function initInventory() {
-    for (var i = 0; i < 20; i++) {
-        let template = document.querySelector(".template").text;
-        let content = document.querySelector(".content");
-        let scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x333333);
-        let element = document.createElement("div");
-        element.className = "list-item"
-        element.innerHTML = template.replace('$', i);
-        scene.userData.element = element.querySelector(".scene");
-        content.appendChild(element);
-        var camera = new THREE.PerspectiveCamera(50, 1, 1, 500);
-        scene.userData.camera = camera;
-        let controls = new THREE.OrbitControls(scene.userData.camera, scene.userData.element);
-        controls.enablePan = false;
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.25;
-        scene.userData.controls = controls;
-        scenesInv.push(scene);
-    }
-}
-
-function addItem(item) {
-    if (!inventory[item]) {
-        let scene = scenesInv[Object.keys(inventory).length];
-        inventory[item] = 1;
-        document.querySelectorAll('.list-item')[Object.keys(inventory).length - 1].children[1].textContent = `${item} - ${inventory[item]}`;
-        document.querySelectorAll('.list-item')[Object.keys(inventory).length - 1].className += " item-" + item
-        let camera = scene.userData.camera
-        let controls = scene.userData.controls
-        scene.background = new THREE.Color(0x333333);
-
-        var loader = new THREE.GLTFLoader();
-        loader.load(`items/${item}.gltf`, (gltf) => {
-            let bbox = new THREE.Box3().setFromObject(gltf.scene);
-            camera.position.z = (bbox.max.z - bbox.min.z) * 2;
-            camera.position.y = (bbox.max.y - bbox.min.y) * 2;
-            controls.target = bbox.getCenter();
-            controls.update();
-
-            var light = new THREE.DirectionalLight(0xffffff, 0.75);
-            light.position.set((bbox.max.x - bbox.min.x), (bbox.max.y - bbox.min.y) * 2, (bbox.max.z - bbox.min.z));
-            light.castShadow = true;
-            scene.add(light)
-
-            scene.add(new THREE.AmbientLight(0xffffff))
-            scene.add(gltf.scene);
-
-            gltf.scene.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-        },
-            (xhr) => { console.log((xhr.loaded / xhr.total * 100) + '% loaded'); },
-            (error) => { console.log(error); }
-        );
-    } else {
-        document.querySelectorAll('.item-' + item)[0].children[1].textContent = `${item} - ${inventory[item] + 1}`;
-        inventory[item] += 1;
-    }
-}
-
 function initHome() {
     scene_home = new THREE.Scene();
     scene_home.background = new THREE.Color(0x000000);
@@ -308,26 +235,12 @@ function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function updateSize() {
-    let canvasInv = document.querySelector(".inventory");
-    var width = canvasInv.clientWidth;
-    var height = canvasInv.clientHeight;
-    if (canvasInv.width !== width || canvasInv.height !== height) renderer.setSize(width, height, false);
-}
-
 function animate() {
-    if (current) {
-        renderer.setScissorTest(false);
-        resize();
-        renderCity();
-    } else {
-        resize();
-        renderInventory();
-    }
+    render();
     requestAnimationFrame(animate);
 }
 
-function renderCity() {
+function render() {
     stats.begin();
     controls.update();
     raycaster.setFromCamera(mouse, camera);
@@ -378,35 +291,6 @@ function renderCity() {
     }
     stats.end();
     renderer.render(scene, camera);
-}
-
-
-function renderInventory() {
-    updateSize();
-    renderer.setClearColor(0xffffff);
-    renderer.setScissorTest(false);
-    renderer.clear();
-    renderer.setScissorTest(true);
-    renderer.setClearColor(0xffffff);
-    scenesInv.forEach(function (scene) {
-        for (let i = 0; i < scene.children.length; i++) {
-            if (scene.children[i] instanceof THREE.Scene) scene.children[i].rotation.y = Date.now() * 0.001;
-        }
-        var element = scene.userData.element;
-        var rect = element.getBoundingClientRect();
-        if (rect.bottom < 0 || rect.top > renderer.domElement.clientHeight ||
-            rect.right < 0 || rect.left > renderer.domElement.clientWidth) {
-            return;
-        }
-        var width = rect.right - rect.left;
-        var height = rect.bottom - rect.top;
-        var left = rect.left;
-        var top = rect.top;
-        renderer.setViewport(left, top, width, height);
-        renderer.setScissor(left, top, width, height);
-        var camera = scene.userData.camera;
-        renderer.render(scene, camera);
-    });
 }
 
 const ValidateIPaddress = (ipaddress) => {
