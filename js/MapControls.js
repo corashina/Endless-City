@@ -27,8 +27,8 @@ THREE.MapControls = function (object, domElement) {
   this.target = new THREE.Vector3();
 
   // How far you can dolly in and out ( PerspectiveCamera only )
-  this.minDistance = 85;
-  this.maxDistance = 125;
+  this.minDistance = 125;
+  this.maxDistance = 150;
 
   // How far you can zoom in and out ( OrthographicCamera only )
   this.minZoom = 0;
@@ -36,8 +36,8 @@ THREE.MapControls = function (object, domElement) {
 
   // How far you can orbit vertically, upper and lower limits.
   // Range is 0 to Math.PI radians.
-  this.minPolarAngle = Math.PI / 4; // radians
-  this.maxPolarAngle = Math.PI / 4; // radians
+  this.minPolarAngle = Math.PI / 5; // radians
+  this.maxPolarAngle = Math.PI / 5; // radians
 
   // How far you can orbit horizontally, upper and lower limits.
   // If set, must be a sub-interval of the interval [ - Math.PI, Math.PI ].
