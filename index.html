@@ -6,7 +6,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <link rel="stylesheet" type="text/css" href="style.css">
-    <link rel="icon" href="img/world-wide-web.png" type="image/gif" sizes="16x16">
+    <link rel="icon" href="favicon.ico" type="image/gif" sizes="16x16">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.16.1/js/jquery.terminal.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.16.1/css/jquery.terminal.min.css" rel="stylesheet" />
@@ -15,10 +15,20 @@
 <body>
     <canvas></canvas>
 
-    <div class="loadingScreen">
-        <span class="progressCounter">0%</span>
-        <div class="progressBar"></div>
+    <div class="load">
+        <div class="lds-roller">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <p class="progress"></p>
+        </div>
     </div>
+
     <div class="info"></div>
 
     <div class="shell">

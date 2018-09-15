@@ -1,33 +1,16 @@
 @import url('https://fonts.googleapis.com/css?family=Product+Sans:400');
 
 :root {
-    --background: #1a1a1a;
-    --blueish: #4285f4;
-    --pinky: #f44263;
+    --background: #1c1c1c;
+    --content: #fffdd0;
 }
 
 body {
     font: 100% "Product Sans", sans-serif;
-    background-color: #f0f0f0;
+    background-color: var(--background);
     margin: 0px;
     overflow: hidden;
-}
-
-.stats {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    background: #fff;
-    border: 1px solid #111;
-    visibility: hidden;
-    text-align: center;
-    font-size: 500%;
-    display: flex;
-    justify-content: center;
-    align-content: center;
-    flex-direction: column;
+    position: relative;
 }
 
 .info {
@@ -47,80 +30,136 @@ body {
     flex-direction: column;
 }
 
-.info p {
-    margin: 2%;
-}
-
-.loadingScreen {
-    position: absolute;
+.load {
     width: 100%;
     height: 100%;
-    top: 0%;
-    left: 0%;
-    background: #fff;
-    font-size: 500%;
-    color: aqua;
-    text-align: center;
-    display: flex;
-    justify-content: center;
-    align-content: center;
-    flex-direction: column;
-}
-
-.loadingScreen>span {
-    font-size: 500%;
-    color: aqua;
-    text-align: center;
-    display: flex;
-    justify-content: center;
-    align-content: center;
-    flex-direction: column;
-    z-index: 2;
-}
-
-.progressBar {
+    background: var(--background);
     position: absolute;
-    width: 0%;
-    height: 100%;
-    background: #111;
-}
-
-.skills {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: #111;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-gap: 10px;
-    justify-content: center;
-}
-
-.skills-item {
-    width: 100%;
-    position: relative;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    transform: scale(0.5);
-    cursor: pointer;
-}
-
-.skills-item::after {
-    content: "Melo";
-    position: absolute;
-    font-size: 300%;
-    color: #fff;
-    font-weight: bold;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0;
+    transform: translate(-50%, -50%)
 }
 
-.skills-item:hover::after {
-    opacity: 1;
+.progress {
+    text-align: center;
+    color: var(--content);
+    margin: 0;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%)
 }
+
+.lds-roller {
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 128px;
+    height: 128px;
+}
+
+.lds-roller div {
+    animation: lds-roller 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    transform-origin: 64px 64px;
+}
+
+.lds-roller div:after {
+    content: " ";
+    display: block;
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--content);
+    margin: -6px 0 0 -6px;
+}
+
+.lds-roller div:nth-child(1) {
+    animation-delay: -0.036s;
+}
+
+.lds-roller div:nth-child(1):after {
+    top: 100px;
+    left: 100px;
+}
+
+.lds-roller div:nth-child(2) {
+    animation-delay: -0.072s;
+}
+
+.lds-roller div:nth-child(2):after {
+    top: 108px;
+    left: 90px;
+}
+
+.lds-roller div:nth-child(3) {
+    animation-delay: -0.108s;
+}
+
+.lds-roller div:nth-child(3):after {
+    top: 114px;
+    left: 78px;
+}
+
+.lds-roller div:nth-child(4) {
+    animation-delay: -0.144s;
+}
+
+.lds-roller div:nth-child(4):after {
+    top: 116px;
+    left: 64px;
+}
+
+.lds-roller div:nth-child(5) {
+    animation-delay: -0.18s;
+}
+
+.lds-roller div:nth-child(5):after {
+    top: 114px;
+    left: 50px;
+}
+
+.lds-roller div:nth-child(6) {
+    animation-delay: -0.216s;
+}
+
+.lds-roller div:nth-child(6):after {
+    top: 108px;
+    left: 38px;
+}
+
+.lds-roller div:nth-child(7) {
+    animation-delay: -0.252s;
+}
+
+.lds-roller div:nth-child(7):after {
+    top: 100px;
+    left: 28px;
+}
+
+.lds-roller div:nth-child(8) {
+    animation-delay: -0.288s;
+}
+
+.lds-roller div:nth-child(8):after {
+    top: 90px;
+    left: 20px;
+}
+
+@keyframes lds-roller {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+
+
 
 /* Terminal */
 .terminal {

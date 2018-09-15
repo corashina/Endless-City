@@ -3,7 +3,7 @@ const EAST = -0.5;
 const SOUTH = 2;
 const WEST = 0.5;
 
-var camera, scene, controls, renderer, INTERSECTED, raycaster, container, stats, lastLoad, loader, listener, audioLoader;
+var camera, scene, controls, renderer, INTERSECTED, raycaster, container, stats, lastLoad, loader;
 var carList = [];
 var scene_home, camera_home;
 
@@ -14,7 +14,7 @@ var info = document.querySelector(".info");
 var clock = new THREE.Clock();
 
 var clusterNames = [
-    'factory', 'house2', 'shoparea', 'house', 'apartments', 'shops', 'fastfood', 'house3', 'stadium', 'gas', 'supermarket', 'coffeeshop', 'residence', 'bus', 'park'
+    'factory', 'house2', 'shoparea', 'house', 'apartments', 'shops', 'fastfood', 'house3', 'stadium', 'gas', 'supermarket', 'coffeeshop', 'residence', 'bus', 'park', 'supermarket'
 ]
 
 var directions = [1, -0.5, 2, 0.5]
@@ -34,19 +34,11 @@ function initCity() {
     stats.showPanel(0);
     document.body.appendChild(stats.dom);
 
-    var progressBar = document.querySelector(".progressBar");
-    var progressCounter = document.querySelector(".progressCounter");
-
     var manager = new THREE.LoadingManager();
     manager.onProgress = (url, loaded, total) => {
-        if (loaded / total > lastLoad) {
-            let percent = Math.round((loaded / total * 100)) + '%'
-            progressBar.style.width = percent;
-            progressCounter.textContent = percent;
-        }
-        lastLoad = loaded / total;
+        document.querySelector('.progress').textContent = `${Math.ceil(loaded / total * 100)}%`;
     };
-    manager.onLoad = () => { document.querySelector(".loadingScreen").style.display = "none" };
+    manager.onLoad = () => { document.querySelector(".load").remove() };
 
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
@@ -79,7 +71,7 @@ function initCity() {
 
     const clusterLoader = ({ x, z, cluster, direction, cars }) => {
         loader.load("js/clusters/" + cluster + ".json", obj => {
-            obj.position.set(obj.position.x + x * 60, 0, obj.position.z + z * 60)
+            obj.position.set(x * 60, 0, z * 60)
             if (direction != null) obj.rotation.y = Math.PI * direction;
             switch (direction) {
                 case EAST:
@@ -105,47 +97,17 @@ function initCity() {
 
     clusters.forEach((cluster) => { clusterLoader(cluster) });
 
-    clusters = generateCluster(1, 1);
-
-    clusters.forEach((cluster) => { clusterLoader(cluster) });
-
-    clusters = generateCluster(0, 1);
-
-    clusters.forEach((cluster) => { clusterLoader(cluster) });
-
     // Lights
-    light = new THREE.AmbientLight(0x888888);
-    light.intensity = 0.5;
-    scene.add(light);
-
     light = new THREE.DirectionalLight(0xFFFFFF);
-    light.position.set(60, 50, 60);
+    light.position.set(50, 75, 50);
     light.castShadow = true;
-    light.intensity = 0.7;
-    light.shadow.mapSize.width = 4096;
-    light.shadow.mapSize.height = 4096;
+    light.shadow.mapSize.width = light.shadow.mapSize.height = 4096;
     light.shadow.camera.near = 0;
-    light.shadow.camera.far = 350;
-    light.shadow.camera.left = -200;
-    light.shadow.camera.right = 200;
-    light.shadow.camera.top = 200;
-    light.shadow.camera.bottom = -100;
+    light.shadow.camera.far = 1500;
+    light.shadow.camera.left = light.shadow.camera.bottom = -200;
+    light.shadow.camera.right = light.shadow.camera.top = 200;
     scene.add(light);
-
-    listener = new THREE.AudioListener();
-    camera.add(listener);
-
-    // create the PositionalAudio object (passing in the listener)
-    var sound = new THREE.PositionalAudio(listener);
-
-    // load a sound and set it as the PositionalAudio object's buffer
-    audioLoader = new THREE.AudioLoader();
-    audioLoader.load('sounds/ambient.mp3', function (buffer) {
-        sound.setBuffer(buffer);
-        sound.setRefDistance(20);
-        sound.play();
-    });
-    scene.add(sound);
+    scene.add(new THREE.HemisphereLight(0x555555, 0xfffffff, 0.3));
 
 
     window.addEventListener("resize", resize, false);
@@ -243,6 +205,24 @@ function animate() {
 function render() {
     stats.begin();
     controls.update();
+    const LEAP = 240;
+    if (camera.position.x > 130) {
+        controls.target.x -= LEAP;
+        camera.position.x -= LEAP;
+    }
+    if (camera.position.x < -120) {
+        controls.target.x += LEAP;
+        camera.position.x += LEAP;
+    }
+    if (camera.position.z > 130) {
+        controls.target.z -= LEAP;
+        camera.position.z -= LEAP;
+    }
+    if (camera.position.z < -120) {
+        controls.target.z += LEAP;
+        camera.position.z += LEAP;
+    }
+
     raycaster.setFromCamera(mouse, camera);
 
     carList.forEach(car => {
@@ -266,29 +246,29 @@ function render() {
         }
     })
 
-    let intersects = raycaster.intersectObjects(scene.children, true);
-    if (intersects.length > 0) {
-        if (INTERSECTED != intersects[0].object) {
-            if (INTERSECTED) {
-                INTERSECTED.material.transparent = false;
-                INTERSECTED.material.opacity = 1;
-                $('html,body').css('cursor', 'default');
-            }
-            INTERSECTED = intersects[0].object;
-            if (Object.keys(INTERSECTED.userData).length > 0) {
-                $('html,body').css('cursor', 'pointer');
-                INTERSECTED.material.transparent = true;
-                INTERSECTED.material.opacity = 0.7;
-            }
-        }
-    } else {
-        $('html,body').css('cursor', 'default');
-        if (INTERSECTED) {
-            INTERSECTED.material.transparent = false;
-            INTERSECTED.material.opacity = 1;
-        }
-        INTERSECTED = null;
-    }
+    // let intersects = raycaster.intersectObjects(scene.children, true);
+    // if (intersects.length > 0) {
+    //     if (INTERSECTED != intersects[0].object) {
+    //         if (INTERSECTED) {
+    //             INTERSECTED.material.transparent = false;
+    //             INTERSECTED.material.opacity = 1;
+    //             $('html,body').css('cursor', 'default');
+    //         }
+    //         INTERSECTED = intersects[0].object;
+    //         if (Object.keys(INTERSECTED.userData).length > 0) {
+    //             $('html,body').css('cursor', 'pointer');
+    //             INTERSECTED.material.transparent = true;
+    //             INTERSECTED.material.opacity = 0.7;
+    //         }
+    //     }
+    // } else {
+    //     $('html,body').css('cursor', 'default');
+    //     if (INTERSECTED) {
+    //         INTERSECTED.material.transparent = false;
+    //         INTERSECTED.material.opacity = 1;
+    //     }
+    //     INTERSECTED = null;
+    // }
     stats.end();
     renderer.render(scene, camera);
 }
@@ -425,15 +405,81 @@ function dragElement(elmnt) {
     }
 }
 
-function generateCluster(xPos, zPos) {
-    let cluster = [
-        { x: 0 + xPos * 3.66, z: -1 + zPos * 3.66, cluster: "road" },
-        { x: 0 + xPos * 3.66, z: -1 + zPos * 3.66, cluster: "cars", cars: false }
+function generateCluster() {
+    return [
+        { x: 1, z: 0, cluster: "road" },
+        // { x: 1, z: 0, cluster: "cars", cars: false },
+
+        { x: 2, z: 2, cluster: clusterNames[0], direction: directions[SOUTH] },
+        { x: 2, z: 1, cluster: clusterNames[1], direction: directions[SOUTH] },
+        { x: 2, z: 0, cluster: clusterNames[2], direction: directions[SOUTH] },
+        { x: 2, z: -1, cluster: clusterNames[3], direction: directions[SOUTH] },
+        { x: 2, z: -2, cluster: clusterNames[0], direction: directions[SOUTH] },
+        { x: 2, z: -3, cluster: clusterNames[1], direction: directions[SOUTH] },
+        { x: 2, z: -4, cluster: clusterNames[2], direction: directions[SOUTH] },
+        { x: 2, z: -5, cluster: clusterNames[3], direction: directions[SOUTH] },
+
+        { x: 1, z: 2, cluster: clusterNames[4], direction: directions[SOUTH] },
+        { x: 1, z: 1, cluster: clusterNames[7], direction: directions[SOUTH] },
+        { x: 1, z: 0, cluster: clusterNames[8], direction: directions[SOUTH] },
+        { x: 1, z: -1, cluster: clusterNames[9], direction: directions[SOUTH] },
+        { x: 1, z: -2, cluster: clusterNames[4], direction: directions[SOUTH] },
+        { x: 1, z: -3, cluster: clusterNames[7], direction: directions[SOUTH] },
+        { x: 1, z: -4, cluster: clusterNames[8], direction: directions[SOUTH] },
+        { x: 1, z: -5, cluster: clusterNames[9], direction: directions[SOUTH] },
+
+        { x: 0, z: 2, cluster: clusterNames[5], direction: directions[SOUTH] },
+        { x: 0, z: 1, cluster: clusterNames[10], direction: directions[SOUTH] },
+        { x: 0, z: 0, cluster: clusterNames[12], direction: directions[SOUTH] },
+        { x: 0, z: -1, cluster: clusterNames[13], direction: directions[SOUTH] },
+        { x: 0, z: -2, cluster: clusterNames[5], direction: directions[SOUTH] },
+        { x: 0, z: -3, cluster: clusterNames[10], direction: directions[SOUTH] },
+        { x: 0, z: -4, cluster: clusterNames[12], direction: directions[SOUTH] },
+        { x: 0, z: -5, cluster: clusterNames[13], direction: directions[SOUTH] },
+
+        { x: -1, z: 2, cluster: clusterNames[6], direction: directions[SOUTH] },
+        { x: -1, z: 1, cluster: clusterNames[11], direction: directions[SOUTH] },
+        { x: -1, z: 0, cluster: clusterNames[14], direction: directions[SOUTH] },
+        { x: -1, z: -1, cluster: clusterNames[15], direction: directions[SOUTH] },
+        { x: -1, z: -2, cluster: clusterNames[6], direction: directions[SOUTH] },
+        { x: -1, z: -3, cluster: clusterNames[11], direction: directions[SOUTH] },
+        { x: -1, z: -4, cluster: clusterNames[14], direction: directions[SOUTH] },
+        { x: -1, z: -5, cluster: clusterNames[15], direction: directions[SOUTH] },
+
+        { x: -2, z: 2, cluster: clusterNames[0], direction: directions[SOUTH] },
+        { x: -2, z: 1, cluster: clusterNames[1], direction: directions[SOUTH] },
+        { x: -2, z: 0, cluster: clusterNames[2], direction: directions[SOUTH] },
+        { x: -2, z: -1, cluster: clusterNames[3], direction: directions[SOUTH] },
+        { x: -2, z: -2, cluster: clusterNames[0], direction: directions[SOUTH] },
+        { x: -2, z: -3, cluster: clusterNames[1], direction: directions[SOUTH] },
+        { x: -2, z: -4, cluster: clusterNames[2], direction: directions[SOUTH] },
+        { x: -2, z: -5, cluster: clusterNames[3], direction: directions[SOUTH] },
+
+        { x: -3, z: 2, cluster: clusterNames[4], direction: directions[SOUTH] },
+        { x: -3, z: 1, cluster: clusterNames[7], direction: directions[SOUTH] },
+        { x: -3, z: 0, cluster: clusterNames[8], direction: directions[SOUTH] },
+        { x: -3, z: -1, cluster: clusterNames[9], direction: directions[SOUTH] },
+        { x: -3, z: -2, cluster: clusterNames[4], direction: directions[SOUTH] },
+        { x: -3, z: -3, cluster: clusterNames[7], direction: directions[SOUTH] },
+        { x: -3, z: -4, cluster: clusterNames[8], direction: directions[SOUTH] },
+        { x: -3, z: -5, cluster: clusterNames[9], direction: directions[SOUTH] },
+
+        { x: -4, z: 2, cluster: clusterNames[5], direction: directions[SOUTH] },
+        { x: -4, z: 1, cluster: clusterNames[10], direction: directions[SOUTH] },
+        { x: -4, z: 0, cluster: clusterNames[12], direction: directions[SOUTH] },
+        { x: -4, z: -1, cluster: clusterNames[13], direction: directions[SOUTH] },
+        { x: -4, z: -2, cluster: clusterNames[5], direction: directions[SOUTH] },
+        { x: -4, z: -3, cluster: clusterNames[10], direction: directions[SOUTH] },
+        { x: -4, z: -4, cluster: clusterNames[12], direction: directions[SOUTH] },
+        { x: -4, z: -5, cluster: clusterNames[13], direction: directions[SOUTH] },
+
+        { x: -5, z: 2, cluster: clusterNames[6], direction: directions[SOUTH] },
+        { x: -5, z: 1, cluster: clusterNames[11], direction: directions[SOUTH] },
+        { x: -5, z: 0, cluster: clusterNames[14], direction: directions[SOUTH] },
+        { x: -5, z: -1, cluster: clusterNames[15], direction: directions[SOUTH] },
+        { x: -5, z: -2, cluster: clusterNames[6], direction: directions[SOUTH] },
+        { x: -5, z: -3, cluster: clusterNames[11], direction: directions[SOUTH] },
+        { x: -5, z: -4, cluster: clusterNames[14], direction: directions[SOUTH] },
+        { x: -5, z: -5, cluster: clusterNames[15], direction: directions[SOUTH] },
     ];
-    for (var i = 0; i > -4; i--) {
-        for (var j = 0; j > -4; j--) {
-            cluster.push({ x: i + xPos * 3.66, z: j + zPos * 3.66, cluster: clusterNames[Math.floor(Math.random() * clusterNames.length)], direction: directions[Math.floor(Math.random() * directions.length)] })
-        }
-    }
-    return cluster;
 }

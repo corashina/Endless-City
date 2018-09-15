@@ -41,28 +41,28 @@ THREE.MapControls = function (object, domElement) {
 
   // How far you can orbit horizontally, upper and lower limits.
   // If set, must be a sub-interval of the interval [ - Math.PI, Math.PI ].
-  this.minAzimuthAngle = -Infinity; // radians
-  this.maxAzimuthAngle = Infinity; // radians
+  this.minAzimuthAngle = Math.PI / 4; // radians
+  this.maxAzimuthAngle = Math.PI / 4; // radians
 
   // Set to true to enable damping (inertia)
   // If damping is enabled, you must call controls.update() in your animation loop
-  this.enableDamping = false;
-  this.dampingFactor = 1;
+  this.enableDamping = true;
+  this.dampingFactor = 0.5;
 
   // This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
   // Set to false to disable zooming
-  this.enableZoom = true;
+  this.enableZoom = false;
   this.zoomSpeed = 1.0;
 
   // Set to false to disable rotating
-  this.enableRotate = true;
+  this.enableRotate = false;
   this.rotateSpeed = 1.0;
 
   // Set to false to disable panning
   this.enablePan = true;
   this.panSpeed = 1.0;
   this.screenSpacePanning = false; // if true, pan in screen-space
-  this.keyPanSpeed = 7.0; // pixels moved per arrow key push
+  this.keyPanSpeed = 1.0; // pixels moved per arrow key push
 
   // Set to true to automatically rotate around the target
   // If auto-rotate is enabled, you must call controls.update() in your animation loop
