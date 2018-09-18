@@ -27,8 +27,8 @@ THREE.MapControls = function (object, domElement) {
   this.target = new THREE.Vector3();
 
   // How far you can dolly in and out ( PerspectiveCamera only )
-  this.minDistance = 125;
-  this.maxDistance = 150;
+  this.minDistance = 100;
+  this.maxDistance = 125;
 
   // How far you can zoom in and out ( OrthographicCamera only )
   this.minZoom = 0;
@@ -47,7 +47,7 @@ THREE.MapControls = function (object, domElement) {
   // Set to true to enable damping (inertia)
   // If damping is enabled, you must call controls.update() in your animation loop
   this.enableDamping = true;
-  this.dampingFactor = 0.5;
+  this.dampingFactor = 0.1;
 
   // This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
   // Set to false to disable zooming
@@ -60,9 +60,9 @@ THREE.MapControls = function (object, domElement) {
 
   // Set to false to disable panning
   this.enablePan = true;
-  this.panSpeed = 1.0;
+  this.panSpeed = 0.1;
   this.screenSpacePanning = false; // if true, pan in screen-space
-  this.keyPanSpeed = 1.0; // pixels moved per arrow key push
+  this.keyPanSpeed = 0.1; // pixels moved per arrow key push
 
   // Set to true to automatically rotate around the target
   // If auto-rotate is enabled, you must call controls.update() in your animation loop

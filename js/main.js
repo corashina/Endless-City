@@ -1,7 +1,4 @@
-const NORTH = 1;
-const EAST = -0.5;
-const SOUTH = 2;
-const WEST = 0.5;
+const NORTH = 1, EAST = -0.5, SOUTH = 2, WEST = 0.5, LEAP = 240;
 
 var camera, scene, controls, renderer, mouse = new THREE.Vector2(), raycaster = new THREE.Raycaster(), stats, loader, light, carList = [], manager = new THREE.LoadingManager(), loader = new THREE.ObjectLoader(manager);
 
@@ -111,7 +108,7 @@ function initCity() {
     controls = new THREE.MapControls(camera);
 
     // Lights
-    light = new THREE.DirectionalLight(0xFFFFFF);
+    light = new THREE.DirectionalLight(0x9a9a9a, 1.5);
     light.position.set(50, 75, 50);
     light.castShadow = true;
     light.shadow.mapSize.width = light.shadow.mapSize.height = 4096;
@@ -148,49 +145,51 @@ function onMouseMove(event) {
 }
 
 function animate() {
-    render();
     requestAnimationFrame(animate);
+    render();
 }
 
 function render() {
     stats.begin();
     controls.update();
-    const LEAP = 240;
+
     if (camera.position.x > 130) {
         controls.target.x -= LEAP;
         camera.position.x -= LEAP;
+        carList.forEach(car => car.position.x -= LEAP);
     } else if (camera.position.x < -120) {
         controls.target.x += LEAP;
         camera.position.x += LEAP;
+        carList.forEach(car => car.position.x += LEAP);
     }
     if (camera.position.z > 130) {
         controls.target.z -= LEAP;
         camera.position.z -= LEAP;
+        carList.forEach(car => car.position.z -= LEAP);
     } else if (camera.position.z < -120) {
         controls.target.z += LEAP;
         camera.position.z += LEAP;
+        carList.forEach(car => car.position.z += LEAP);
     }
 
     raycaster.setFromCamera(mouse, camera);
 
     carList.forEach(car => {
-        car.r.set(new THREE.Vector3(car.data.position.x + 58, 1, car.data.position.z), new THREE.Vector3(car.data.userData.x, 0, car.data.userData.z))
-        let _NT = car.r.intersectObjects(scene.children, true);
+        car.r.set(new THREE.Vector3(car.position.x + 58, 1, car.position.z), new THREE.Vector3(car.userData.x, 0, car.userData.z))
+        let _NT = car.r.intersectObjects(carList, true);
         if (_NT.length > 0) {
             car.speed = 0;
             return;
         } else {
-            if (car.speed < car.maxSpeed) car.speed += 0.002;
-            if (car.distance > 600) {
-                car.data.position.x -= car.data.userData.x * car.distance;
-                car.data.position.z -= car.data.userData.z * car.distance;
-                car.distance = 0;
-            }
-            let distanceX = car.data.userData.x * car.speed;
-            let distanceZ = car.data.userData.z * car.speed
-            car.data.position.x += distanceX;
-            car.data.position.z += distanceZ;
-            car.distance += Math.abs(distanceX) + Math.abs(distanceZ);
+            car.speed = car.speed < car.maxSpeed ? car.speed + 0.002 : car.speed;
+
+            if (car.position.x < -380) car.position.x += LEAP * 2;
+            else if (car.position.x > 100) car.position.x -= LEAP * 2;
+            if (car.position.z < -320) car.position.x += LEAP * 2;
+            else if (car.position.z > 160) car.position.x -= LEAP * 2;
+
+            car.position.x += car.userData.x * car.speed;
+            car.position.z += car.userData.z * car.speed;
         }
     })
     stats.end();
@@ -207,7 +206,11 @@ function loadCluster({ x, z, cluster, direction, cars }) {
         scene.add(obj);
         if (cars) {
             obj.children.forEach(e => {
-                carList.push({ data: e, distance: 0, speed: 0, maxSpeed: ((Math.random() * 0.3) + 0.2).toFixed(1), r: new THREE.Raycaster(new THREE.Vector3(e.position.x, 2, e.position.z), new THREE.Vector3(e.userData.x, 0, e.userData.z), 5, 15) })
+                e.distance = 0;
+                e.maxSpeed = 0.3;
+                e.speed = e.maxSpeed;
+                e.r = new THREE.Raycaster(new THREE.Vector3(e.position.x, 2, e.position.z), new THREE.Vector3(e.userData.x, 0, e.userData.z), 5, 15);
+                carList.push(e);
             });
         }
     });
