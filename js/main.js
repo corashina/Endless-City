@@ -203,8 +203,9 @@ function loadCluster({ x, z, cluster, direction, cars }) {
         if (direction === EAST) obj.position.x += 20;
         else if (direction === WEST) obj.position.z += 20;
         else if (direction === NORTH) obj.position.set(obj.position.x + 20, 0, obj.position.z + 20);
+        if (cars && screen.width < 768) return
         scene.add(obj);
-        if (cars && isMobile) {
+        if (cars) {
             obj.children.forEach(e => {
                 e.distance = 0;
                 e.maxSpeed = 0.3;
@@ -214,8 +215,4 @@ function loadCluster({ x, z, cluster, direction, cars }) {
             });
         }
     });
-};
-
-function isMobile() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
