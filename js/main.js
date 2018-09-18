@@ -204,7 +204,7 @@ function loadCluster({ x, z, cluster, direction, cars }) {
         else if (direction === WEST) obj.position.z += 20;
         else if (direction === NORTH) obj.position.set(obj.position.x + 20, 0, obj.position.z + 20);
         scene.add(obj);
-        if (cars) {
+        if (cars && isMobile) {
             obj.children.forEach(e => {
                 e.distance = 0;
                 e.maxSpeed = 0.3;
@@ -216,4 +216,6 @@ function loadCluster({ x, z, cluster, direction, cars }) {
     });
 };
 
-
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
