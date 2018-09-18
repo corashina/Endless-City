@@ -1,6 +1,6 @@
 const NORTH = 1, EAST = -0.5, SOUTH = 2, WEST = 0.5, LEAP = 240;
 
-var camera, scene, controls, renderer, mouse = new THREE.Vector2(), raycaster = new THREE.Raycaster(), stats, loader, light, carList = [], manager = new THREE.LoadingManager(), loader = new THREE.ObjectLoader(manager);
+var camera, scene, controls, renderer, mouse = new THREE.Vector2(), raycaster = new THREE.Raycaster(), stats, loader, light, carList = [], manager = new THREE.LoadingManager(), loader = new THREE.GLTFLoader(manager);
 
 var clusterNames = [
     'factory', 'house2', 'shoparea', 'house', 'apartments', 'shops', 'fastfood', 'house3', 'stadium', 'gas', 'supermarket', 'coffeeshop', 'residence', 'bus', 'park', 'supermarket'
@@ -8,7 +8,6 @@ var clusterNames = [
 
 const cluster = [
     { x: 1, z: 0, cluster: "road" },
-    { x: 1, z: 0, cluster: "cars", cars: true },
 
     { x: 2, z: 2, cluster: clusterNames[0], direction: SOUTH },
     { x: 2, z: 1, cluster: clusterNames[1], direction: SOUTH },
@@ -108,16 +107,16 @@ function initCity() {
     controls = new THREE.MapControls(camera);
 
     // Lights
-    light = new THREE.DirectionalLight(0x9a9a9a, 1.5);
-    light.position.set(50, 75, 50);
+    light = new THREE.DirectionalLight(0x9a9a9a, 1);
+    light.position.set(-300, 750, -300);
     light.castShadow = true;
     light.shadow.mapSize.width = light.shadow.mapSize.height = 4096;
-    light.shadow.camera.near = 0;
-    light.shadow.camera.far = 1500;
+    light.shadow.camera.near = 1;
+    light.shadow.camera.far = 1000;
     light.shadow.camera.left = light.shadow.camera.bottom = -200;
     light.shadow.camera.right = light.shadow.camera.top = 200;
     scene.add(light);
-    scene.add(new THREE.HemisphereLight(0x9a9a9a, 0x1a1a1a, 0.5));
+    scene.add(new THREE.HemisphereLight(0xefefef, 0xffffff, 1));
 
     // Renderer settings
     renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), antialias: true });
@@ -130,6 +129,10 @@ function initCity() {
 
     // Load map
     cluster.forEach((cls) => loadCluster(cls));
+
+    // Load cars
+    if (screen.width > 768) loadCars();
+
 }
 
 function onResize() {
@@ -197,22 +200,35 @@ function render() {
 }
 
 function loadCluster({ x, z, cluster, direction, cars }) {
-    loader.load(`js/clusters/${cluster}.json`, obj => {
-        obj.position.set(x * 60, 0, z * 60)
-        if (direction) obj.rotation.y = Math.PI * direction;
-        if (direction === EAST) obj.position.x += 20;
-        else if (direction === WEST) obj.position.z += 20;
-        else if (direction === NORTH) obj.position.set(obj.position.x + 20, 0, obj.position.z + 20);
-        if (cars && screen.width < 768) return
-        scene.add(obj);
-        if (cars) {
-            obj.children.forEach(e => {
-                e.distance = 0;
-                e.maxSpeed = 0.3;
-                e.speed = e.maxSpeed;
-                e.r = new THREE.Raycaster(new THREE.Vector3(e.position.x, 2, e.position.z), new THREE.Vector3(e.userData.x, 0, e.userData.z), 5, 15);
-                carList.push(e);
-            });
-        }
+    loader.load(`js/clusters/${cluster}.gltf`, gltf => {
+        gltf.scene.traverse(function (child) {
+            if (child.isMesh) {
+                child.receiveShadow = true;
+                child.castShadow = true;
+            }
+        })
+        gltf.scene.position.set(x * 60, 0, z * 60);
+        if (direction) gltf.scene.rotation.y = Math.PI * direction;
+        if (direction === EAST) gltf.scene.position.x += 20;
+        else if (direction === WEST) gltf.scene.position.z += 20;
+        else if (direction === NORTH) gltf.scene.position.set(gltf.scene.position.x + 20, 0, ogltfbj.scene.position.z + 20);
+        scene.add(gltf.scene);
     });
 };
+
+function loadCars() {
+    loader.load('js/clusters/cars.gltf', gltf => {
+        gltf.scene.position.set(60, 0, 0)
+        gltf.scene.children.forEach(e => {
+            e.distance = 0;
+            e.maxSpeed = 0.3;
+            e.speed = e.maxSpeed;
+            e.r = new THREE.Raycaster(
+                new THREE.Vector3(e.position.x, 2, e.position.z),
+                new THREE.Vector3(e.userData.x, 0, e.userData.z), 5, 15
+            );
+            carList.push(e);
+        });
+        scene.add(gltf.scene);
+    });
+}
