@@ -82,6 +82,8 @@ const cluster = [
     { x: -5, z: -5, cluster: clusterNames[15], direction: SOUTH },
 ];
 
+if (screen.width > 768) cluster.push({ x: 1, z: 0, cluster: "cars", cars: true })
+
 initCity();
 animate();
 
@@ -129,9 +131,6 @@ function initCity() {
 
     // Load map
     cluster.forEach((cls) => loadCluster(cls));
-
-    // Load cars
-    if (screen.width > 768) loadCars();
 
 }
 
@@ -206,29 +205,27 @@ function loadCluster({ x, z, cluster, direction, cars }) {
                 child.receiveShadow = true;
                 child.castShadow = true;
             }
-        })
+        });
+
         gltf.scene.position.set(x * 60, 0, z * 60);
         if (direction) gltf.scene.rotation.y = Math.PI * direction;
-        if (direction === EAST) gltf.scene.position.x += 20;
+        else if (direction === EAST) gltf.scene.position.x += 20;
         else if (direction === WEST) gltf.scene.position.z += 20;
         else if (direction === NORTH) gltf.scene.position.set(gltf.scene.position.x + 20, 0, ogltfbj.scene.position.z + 20);
+
         scene.add(gltf.scene);
+
+        if (cars) {
+            gltf.scene.children.forEach(e => {
+                e.distance = 0;
+                e.maxSpeed = 0.3;
+                e.speed = e.maxSpeed;
+                e.r = new THREE.Raycaster(
+                    new THREE.Vector3(e.position.x, 2, e.position.z),
+                    new THREE.Vector3(e.userData.x, 0, e.userData.z), 5, 15
+                );
+                carList.push(e);
+            });
+        }
     });
 };
-
-function loadCars() {
-    loader.load('js/clusters/cars.gltf', gltf => {
-        gltf.scene.position.set(60, 0, 0)
-        gltf.scene.children.forEach(e => {
-            e.distance = 0;
-            e.maxSpeed = 0.3;
-            e.speed = e.maxSpeed;
-            e.r = new THREE.Raycaster(
-                new THREE.Vector3(e.position.x, 2, e.position.z),
-                new THREE.Vector3(e.userData.x, 0, e.userData.z), 5, 15
-            );
-            carList.push(e);
-        });
-        scene.add(gltf.scene);
-    });
-}
