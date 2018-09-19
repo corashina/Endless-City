@@ -1,5 +1,4 @@
 const NORTH = 1, EAST = -0.5, SOUTH = 2, WEST = 0.5, LEAP = 240;
-const mobile = screen.width < 768 ? true : false
 
 var camera, scene, controls, renderer, mouse = new THREE.Vector2(), raycaster = new THREE.Raycaster(), stats, loader, light, carList = [], manager = new THREE.LoadingManager(), loader = new THREE.GLTFLoader(manager);
 
@@ -111,12 +110,12 @@ function initCity() {
     light = new THREE.DirectionalLight(0x9a9a9a, 1);
     light.position.set(-300, 750, -300);
     light.castShadow = true;
-    light.shadow.mapSize.width = light.shadow.mapSize.height = 2048;
+    light.shadow.mapSize.width = light.shadow.mapSize.height = 4096;
     light.shadow.camera.near = 1;
     light.shadow.camera.far = 1000;
     light.shadow.camera.left = light.shadow.camera.bottom = -200;
     light.shadow.camera.right = light.shadow.camera.top = 200;
-    if (!mobile) scene.add(light);
+    scene.add(light);
     scene.add(new THREE.HemisphereLight(0xefefef, 0xffffff, 1));
 
     // Renderer settings
@@ -132,7 +131,7 @@ function initCity() {
     cluster.forEach((cls) => loadCluster(cls));
 
     // Load cars
-    if (!mobile) loadCars();
+    if (screen.width > 768) loadCars();
 
 }
 
@@ -182,7 +181,7 @@ function render() {
         car.r.set(new THREE.Vector3(car.position.x + 58, 1, car.position.z), new THREE.Vector3(car.userData.x, 0, car.userData.z))
         let _NT = car.r.intersectObjects(carList, true);
         if (_NT.length > 0) {
-            car.speed *= 0.9;
+            car.speed = 0;
             return;
         } else {
             car.speed = car.speed < car.maxSpeed ? car.speed + 0.002 : car.speed;
@@ -191,9 +190,10 @@ function render() {
             else if (car.position.x > 100) car.position.x -= LEAP * 2;
             if (car.position.z < -320) car.position.x += LEAP * 2;
             else if (car.position.z > 160) car.position.x -= LEAP * 2;
+
+            car.position.x += car.userData.x * car.speed;
+            car.position.z += car.userData.z * car.speed;
         }
-        car.position.x += car.userData.x * car.speed;
-        car.position.z += car.userData.z * car.speed;
     })
     stats.end();
     renderer.render(scene, camera);
@@ -218,22 +218,16 @@ function loadCluster({ x, z, cluster, direction, cars }) {
 
 function loadCars() {
     loader.load('js/clusters/cars.gltf', gltf => {
-        gltf.scene.position.set(60, 0, 0);
-        gltf.scene.traverse(function (child) {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-        gltf.scene.children.forEach(car => {
-            car.distance = 0;
-            car.maxSpeed = 0.3;
-            car.speed = car.maxSpeed;
-            car.r = new THREE.Raycaster(
-                new THREE.Vector3(car.position.x, 2, car.position.z),
-                new THREE.Vector3(car.userData.x, 0, car.userData.z), 5, 10
+        gltf.scene.position.set(60, 0, 0)
+        gltf.scene.children.forEach(e => {
+            e.distance = 0;
+            e.maxSpeed = 0.3;
+            e.speed = e.maxSpeed;
+            e.r = new THREE.Raycaster(
+                new THREE.Vector3(e.position.x, 2, e.position.z),
+                new THREE.Vector3(e.userData.x, 0, e.userData.z), 5, 15
             );
-            carList.push(car);
+            carList.push(e);
         });
         scene.add(gltf.scene);
     });
