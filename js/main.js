@@ -123,6 +123,8 @@ function initCity() {
     // Renderer settings
     renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), antialias: true });
     renderer.shadowMap.enabled = true;
+    renderer.gammaInput = renderer.gammaOutput = true;
+    renderer.gammaFactor = 2.0;
     renderer.setSize(window.innerWidth, window.innerHeight);
 
     //Events
