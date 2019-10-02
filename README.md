@@ -1,7 +1,7 @@
 # Endless City 🏢
 WebGL city scene heavily inspired by https://demos.littleworkshop.fr/infinitown
 ## How to run
-Just open https://tomasz-zielinski.github.io/Endless-City/.
+Just open https://corashina.github.io/Endless-City/
 ## Features
  - Map camera controls with damping
  - Infinite map
