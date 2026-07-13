@@ -17,8 +17,8 @@ const config: TrafficConfig = {
   comfortableBraking: 4,
   intersectionHalfExtent: 5,
   reservationLookAhead: 20,
-  protectedRadius: 120,
-  simulationRadius: 220,
+  protectedRadius: 300,
+  simulationRadius: 420,
 }
 
 const camera: WorldPoint = { x: 0, z: 0 }
@@ -121,6 +121,7 @@ describe('deterministic traffic spawning', () => {
     expect(outside.active).toBe(true)
     const position = positionOnLane(outside.lane, outside.progress)
     const distance = Math.hypot(position.x - camera.x, position.z - camera.z)
+    expect(distance).toBeGreaterThan(300)
     expect(distance).toBeGreaterThan(config.protectedRadius)
     expect(distance).toBeLessThanOrEqual(config.simulationRadius)
     assertMinimumLaneGaps([inside, outside])
@@ -141,11 +142,11 @@ describe('deterministic traffic spawning', () => {
       reservationKey: null,
     }
     const blockers: VehicleState[] = directions.flatMap((direction, directionIndex) =>
-      Array.from({ length: 7 }, (_, lineIndex) => ({
-        id: directionIndex * 7 + lineIndex,
+      Array.from({ length: 15 }, (_, lineIndex) => ({
+        id: directionIndex * 15 + lineIndex,
         prototypeId: `${direction}-short`,
         length: 4,
-        lane: { direction, line: lineIndex - 3 },
+        lane: { direction, line: lineIndex - 7 },
         previousProgress: 0,
         progress: 0,
         speed: 0,
@@ -190,6 +191,7 @@ describe('deterministic traffic spawning', () => {
     expect(blockedVehicle.active).toBe(true)
     const position = positionOnLane(blockedVehicle.lane, blockedVehicle.progress)
     const distance = Math.hypot(position.x - laterCamera.x, position.z - laterCamera.z)
+    expect(distance).toBeGreaterThan(300)
     expect(distance).toBeGreaterThan(config.protectedRadius)
     expect(distance).toBeLessThanOrEqual(config.simulationRadius)
     expect(occupiedIntersectionKeys(blockedVehicle, config)).toEqual([])

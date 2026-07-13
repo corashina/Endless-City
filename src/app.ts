@@ -4,6 +4,7 @@ import type { GridCoordinate } from './city/types'
 import {
   BLOCK_SIZE,
   FIXED_STEP_SECONDS,
+  FOG_FAR,
   MAX_FRAME_SECONDS,
   WORLD_SEED,
 } from './config'
@@ -16,16 +17,21 @@ import { consumeFixedSteps } from './traffic/following'
 import { TrafficSimulation } from './traffic/simulation'
 import type { TrafficConfig } from './traffic/types'
 import type { OverlayController } from './ui/overlay'
+import {
+  installAcceptanceHook,
+  type AcceptanceSnapshot,
+} from './debug/acceptance'
+import type { WorldPoint } from './city/types'
 
-const TRAFFIC_CONFIG = Object.freeze({
+export const TRAFFIC_CONFIG = Object.freeze({
   minimumGap: 3,
   timeHeadway: 1,
   maximumAcceleration: 2,
   comfortableBraking: 4,
   intersectionHalfExtent: 5,
   reservationLookAhead: 20,
-  protectedRadius: 120,
-  simulationRadius: 220,
+  protectedRadius: FOG_FAR,
+  simulationRadius: FOG_FAR + BLOCK_SIZE * 2,
 } satisfies TrafficConfig)
 
 export interface AppElements {
@@ -34,6 +40,10 @@ export interface AppElements {
   readonly loading?: HTMLElement | null
   readonly loadingProgress?: HTMLElement | null
   readonly onError?: (error: unknown) => void
+  readonly acceptance?: {
+    readonly debug: boolean
+    readonly initialLogicalCamera?: WorldPoint
+  }
 }
 
 export interface AppHandle {
@@ -222,15 +232,60 @@ export async function startApp(
       }
     })
     const cityView = new CityView(context.scene, assets, profile)
-    const traffic = new TrafficSimulation({
-      count: profile.trafficCount,
-      seed: WORLD_SEED,
-      camera: { x: context.camera.position.x, z: context.camera.position.z },
-      prototypes: assets.vehicleMetadata,
-      config: TRAFFIC_CONFIG,
-    })
-    const trafficView = new TrafficView(context.scene, assets, traffic.vehicles)
-    const cameraController = new CameraController(context.camera, context.controls)
+    const traffic = assets.vehicleMetadata.length === 0
+      ? undefined
+      : new TrafficSimulation({
+          count: profile.trafficCount,
+          seed: WORLD_SEED,
+          camera: { x: context.camera.position.x, z: context.camera.position.z },
+          prototypes: assets.vehicleMetadata,
+          config: TRAFFIC_CONFIG,
+        })
+    const trafficView = traffic === undefined
+      ? undefined
+      : new TrafficView(context.scene, assets, traffic.vehicles)
+    const initialLogicalCamera = elements.acceptance?.initialLogicalCamera
+    let initialOrigin: WorldPoint = { x: 0, z: 0 }
+    if (initialLogicalCamera !== undefined) {
+      const xOffset = context.camera.position.x - context.controls.target.x
+      const zOffset = context.camera.position.z - context.controls.target.z
+      context.camera.position.x = 0
+      context.camera.position.z = 0
+      context.controls.target.x = -xOffset
+      context.controls.target.z = -zOffset
+      initialOrigin = { ...initialLogicalCamera }
+    }
+    const cameraController = new CameraController(context.camera, context.controls, initialOrigin)
+    let currentCameraState = {
+      logicalCamera: {
+        x: context.camera.position.x + initialOrigin.x,
+        z: context.camera.position.z + initialOrigin.z,
+      },
+      origin: initialOrigin,
+    }
+    const removeAcceptanceHook = installAcceptanceHook(
+      elements.acceptance?.debug === true,
+      (): AcceptanceSnapshot => {
+        const city = cityView.acceptanceSnapshot()
+        const activeVehicles = traffic?.vehicles.filter((vehicle) => vehicle.active) ?? []
+        const activeDirections = [...new Set(
+          activeVehicles.map((vehicle) => vehicle.lane.direction),
+        )].sort()
+        return {
+          logicalCamera: currentCameraState.logicalCamera,
+          renderOrigin: currentCameraState.origin,
+          localCamera: {
+            x: context.camera.position.x,
+            z: context.camera.position.z,
+          },
+          buildingPoolSize: city.poolSize,
+          visibleAssignments: city.visibleAssignments,
+          vehicleSlotCount: traffic?.vehicles.length ?? 0,
+          activeVehicleCount: activeVehicles.length,
+          activeDirections,
+        }
+      },
+    )
     const shadowOffset = context.directionalLight.position.clone()
       .sub(context.directionalLight.target.position)
     let accumulator = 0
@@ -253,6 +308,7 @@ export async function startApp(
       }
 
       const cameraState = cameraController.update()
+      currentCameraState = cameraState
       cityView.update(
         centerGridCell(cameraState.logicalCamera.x, cameraState.logicalCamera.z),
         cameraState.origin,
@@ -262,15 +318,17 @@ export async function startApp(
         ? 0
         : (timestamp - previousTimestamp) / 1_000
       previousTimestamp = timestamp
-      const stepResult = consumeFixedSteps(
-        accumulator,
-        frameSeconds,
-        FIXED_STEP_SECONDS,
-        MAX_FRAME_SECONDS,
-        () => traffic.step(FIXED_STEP_SECONDS, cameraState.logicalCamera),
-      )
-      accumulator = stepResult.accumulator
-      trafficView.sync(traffic.vehicles, cameraState.origin, stepResult.alpha)
+      if (traffic !== undefined && trafficView !== undefined) {
+        const stepResult = consumeFixedSteps(
+          accumulator,
+          frameSeconds,
+          FIXED_STEP_SECONDS,
+          MAX_FRAME_SECONDS,
+          () => traffic.step(FIXED_STEP_SECONDS, cameraState.logicalCamera),
+        )
+        accumulator = stepResult.accumulator
+        trafficView.sync(traffic.vehicles, cameraState.origin, stepResult.alpha)
+      }
 
       const shadowTarget = new THREE.Vector3(
         context.controls.target.x,
@@ -295,7 +353,10 @@ export async function startApp(
         removeRecoveryListeners()
         disposeContext()
       },
-      disposeApplication: () => elements.overlay?.dispose(),
+      disposeApplication: () => {
+        removeAcceptanceHook()
+        elements.overlay?.dispose()
+      },
       onError: reportError,
     })
     if (contextLost) handle.pause()

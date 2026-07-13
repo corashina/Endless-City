@@ -39,9 +39,11 @@ render position = logical position - render origin
 
 ## Asset and view lifecycle
 
-`src/rendering/assets.ts` requests the road, 15 building prototypes, and `cars.gltf` once. Building scenes are cached and cloned into tile slots. A failed building uses the existing park prototype when available, then an empty plot; the required road has no silent fallback.
+`src/rendering/assets.ts` requests the road, 15 building prototypes, and `cars.gltf` once. Source assets remain in `js/clusters/`; `vite.config.ts` treats `js/` as the public directory, so development and production both serve them from `/clusters/`. Building scenes are cached and cloned into tile slots. A failed building uses the existing park prototype when available, then an empty plot; the required road has no silent fallback.
 
 Each directed root in `cars.gltf` becomes a vehicle prototype. The loader validates direction extras as one of `(1, 0)`, `(-1, 0)`, `(0, 1)`, or `(0, -1)`, measures length from its bounds, and exposes immutable metadata to the simulation. `src/rendering/traffic-view.ts` allocates one render slot per simulation slot and interpolates between previous/current progress. A recycled slot may exchange its cloned prototype, but the slot count remains fixed.
+
+If no valid vehicle metadata is available, `src/app.ts` constructs neither `TrafficSimulation` nor `TrafficView`. The city, camera, controls, lighting, overlay, and render loop continue without a traffic pool.
 
 ## Traffic simulation
 
@@ -57,7 +59,7 @@ Crossing centers repeat every 60 units with the road asset’s `-20` offset. `sr
 
 ### Hidden recycling
 
-`src/traffic/spawning.ts` keeps the simulation centered around the logical camera. A vehicle is eligible for recycling only outside the configured simulation radius and never inside the 120-unit protected visible/fog-transition radius. Deterministic candidates are generated beyond fog and accepted only when front/rear gaps and intersection occupancy are safe. If no candidate is safe, the slot becomes inactive and retries later. Recycling cannot be visible and never changes the number of simulation or render slots.
+`src/traffic/spawning.ts` keeps the simulation centered around the logical camera. Production uses the 300-unit fog-far distance as the protected radius and a 420-unit simulation radius, adding a two-block buffer. An active vehicle is not removed until it is beyond 420 units. Deterministic replacement candidates must be farther than 300 units, outside all visible fog, and are accepted only when front/rear gaps and intersection occupancy are safe. If no candidate is safe, the slot becomes inactive and retries later. Recycling cannot be visible and never changes the number of simulation or render slots.
 
 ## Quality profiles
 
@@ -74,6 +76,14 @@ Every traffic profile includes all four directions. `src/rendering/scene.ts` use
 ## Error and application lifecycle
 
 `src/app.ts` owns startup, the animation frame, visibility/resize listeners, pause/resume, and disposal. Loading progress flows from the asset catalog to `src/ui/overlay.ts`. Optional asset failures degrade to existing fallbacks; required road failure, WebGL creation failure, or a frame exception stops the owned loop and shows a concise error with retry. WebGL context loss pauses the loop and exposes a restoring state; restoration resumes the existing application. Default diagnostics are hidden, while `?debug=1` enables the FPS output.
+
+## Acceptance diagnostics
+
+Production acceptance state is absent by default. With `?debug=1`, the application exposes a read-only `window.__ENDLESS_CITY_ACCEPTANCE__()` function. Each call returns a fresh frozen snapshot of logical/render-local camera state, render origin, deterministic visible building assignments, fixed pool sizes, active vehicle count, and active directions. The hook is deleted when the application is disposed.
+
+The same debug-only snapshot can be published to a temporary `data-endless-city-acceptance` attribute by activating the inert `acceptance-snapshot` test bridge. This exists only so restricted browser-automation execution contexts can read the hook's result; it exposes no setter and is removed with the hook.
+
+Debug-only `acceptanceX` and `acceptanceZ` query parameters select an exact startup logical camera coordinate when both values are finite multiples of 60, for example `?debug=1&acceptanceX=6000&acceptanceZ=-6000`. They are ignored without debug mode and provide no runtime mutation API.
 
 ## Non-goals
 

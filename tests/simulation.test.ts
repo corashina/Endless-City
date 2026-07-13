@@ -17,8 +17,8 @@ const config: TrafficConfig = {
   comfortableBraking: 4,
   intersectionHalfExtent: 5,
   reservationLookAhead: 20,
-  protectedRadius: 120,
-  simulationRadius: 220,
+  protectedRadius: 300,
+  simulationRadius: 420,
 }
 
 const directions: readonly Direction[] = ['east', 'west', 'north', 'south']

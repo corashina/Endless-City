@@ -11,6 +11,7 @@ import {
 import { BLOCK_SIZE, WORLD_SEED } from '../config'
 import type { AssetCatalog } from './assets'
 import type { QualityProfile } from './quality'
+import type { AcceptanceBuildingAssignment } from '../debug/acceptance'
 
 export interface TileAssignmentPlan {
   readonly retainedKeys: string[]
@@ -110,6 +111,28 @@ export class CityView {
     })
 
     for (const slot of this.assignments.values()) this.placeSlot(slot, origin)
+  }
+
+  acceptanceSnapshot(): {
+    readonly poolSize: number
+    readonly visibleAssignments: readonly AcceptanceBuildingAssignment[]
+  } {
+    const visibleAssignments = [...this.assignments.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([, slot]) => {
+        const coordinate = slot.coordinate
+        const buildingId = slot.buildingId
+        if (coordinate === undefined || buildingId === undefined) {
+          throw new Error('Incomplete building assignment')
+        }
+        return {
+          coordinate: { ...coordinate },
+          buildingId,
+          rotation: chooseTile(coordinate, this.seed).rotation,
+        }
+      })
+
+    return { poolSize: this.slots.length, visibleAssignments }
   }
 
   private setBuilding(slot: BuildingSlot, buildingId: BuildingId): void {

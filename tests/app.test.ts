@@ -1,11 +1,18 @@
 // @vitest-environment jsdom
 
 import * as THREE from 'three'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { completeOverlayBootstrap, startApp, startOwnedLoop } from '../src/app'
+import * as appModule from '../src/app'
 import type { AssetCatalog } from '../src/rendering/assets'
 import type { SceneContext } from '../src/rendering/scene'
 import type { OverlayController } from '../src/ui/overlay'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  delete (window as unknown as { __ENDLESS_CITY_ACCEPTANCE__?: unknown })
+    .__ENDLESS_CITY_ACCEPTANCE__
+})
 
 function createOverlayHarness() {
   return {
@@ -168,6 +175,134 @@ describe('owned application lifecycle', () => {
 })
 
 describe('startApp setup cleanup', () => {
+  it('keeps production traffic beyond the 300-unit fog boundary before recycling', () => {
+    const trafficConfig = (appModule as unknown as {
+      TRAFFIC_CONFIG?: { protectedRadius: number; simulationRadius: number }
+    }).TRAFFIC_CONFIG
+
+    expect(trafficConfig).toEqual(expect.objectContaining({
+      protectedRadius: 300,
+      simulationRadius: 420,
+    }))
+  })
+
+  it('does not expose acceptance state in default mode', async () => {
+    const canvas = document.createElement('canvas')
+    const scene = createRunnableScene()
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 91)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const handle = await startApp({ canvas }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+    })
+
+    expect(window.__ENDLESS_CITY_ACCEPTANCE__).toBeUndefined()
+    handle.dispose()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
+  })
+
+  it('renders the city without constructing traffic when vehicle metadata is empty', async () => {
+    const canvas = document.createElement('canvas')
+    const scene = createRunnableScene()
+    let frameCallback: FrameRequestCallback | undefined
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frameCallback = callback
+        return 91
+      })
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const catalog = { ...createRunnableCatalog(), vehicleMetadata: [] }
+    const handle = await startApp({ canvas }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => catalog,
+    })
+
+    try {
+      frameCallback?.(1_000)
+      expect(scene.context.scene.getObjectByName('building-pool')).toBeDefined()
+      expect(scene.context.scene.getObjectByName('traffic-pool')).toBeUndefined()
+      expect(scene.context.renderer.render).toHaveBeenCalledOnce()
+    } finally {
+      handle.dispose()
+    }
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
+  })
+
+  it('installs a frozen debug acceptance snapshot at an exact startup coordinate and removes it on dispose', async () => {
+    const canvas = document.createElement('canvas')
+    const scene = createRunnableScene()
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1_280)
+    let frameCallback: FrameRequestCallback | undefined
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frameCallback = callback
+        return 91
+      })
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const handle = await startApp({
+      canvas,
+      acceptance: {
+        debug: true,
+        initialLogicalCamera: { x: 6_000, z: -6_000 },
+      },
+    } as Parameters<typeof startApp>[0], {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+    })
+
+    frameCallback?.(1_000)
+    const acceptanceWindow = window as unknown as {
+      __ENDLESS_CITY_ACCEPTANCE__?: () => Record<string, unknown>
+    }
+    const hook = acceptanceWindow.__ENDLESS_CITY_ACCEPTANCE__
+
+    try {
+      expect(hook).toBeTypeOf('function')
+      const snapshot = hook!() as {
+      logicalCamera: { x: number; z: number }
+      renderOrigin: { x: number; z: number }
+      localCamera: { x: number; z: number }
+      buildingPoolSize: number
+      visibleAssignments: Array<{
+        coordinate: { x: number; z: number }
+        buildingId: string
+        rotation: number
+      }>
+      vehicleSlotCount: number
+      activeVehicleCount: number
+      activeDirections: string[]
+      }
+      expect(snapshot).toMatchObject({
+        logicalCamera: { x: 6_000, z: -6_000 },
+        renderOrigin: { x: 6_000, z: -6_000 },
+        localCamera: { x: 0, z: 0 },
+        buildingPoolSize: 81,
+        vehicleSlotCount: 49,
+        activeVehicleCount: 49,
+        activeDirections: ['east', 'north', 'south', 'west'],
+      })
+      expect(snapshot.visibleAssignments).toHaveLength(81)
+      expect(snapshot.visibleAssignments[0]).toEqual({
+        coordinate: expect.objectContaining({ x: expect.any(Number), z: expect.any(Number) }),
+        buildingId: expect.any(String),
+        rotation: expect.any(Number),
+      })
+      expect(Object.isFrozen(snapshot)).toBe(true)
+      expect(Object.isFrozen(snapshot.visibleAssignments)).toBe(true)
+    } finally {
+      handle.dispose()
+    }
+    expect(acceptanceWindow.__ENDLESS_CITY_ACCEPTANCE__).toBeUndefined()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
+  })
+
   it('disposes the scene before propagating an asset setup failure', async () => {
     const setupError = new Error('asset setup failed')
     const dispose = vi.fn()

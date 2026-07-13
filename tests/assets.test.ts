@@ -96,6 +96,8 @@ describe('asset loading contracts', () => {
 
     expect(urls).toHaveLength(17)
     expect(new Set(urls).size).toBe(17)
+    expect(urls).toContain('/clusters/road.glb')
+    expect(urls).toContain('/clusters/cars.gltf')
     expect(progress).toHaveLength(17)
     expect(progress.at(-1)).toMatchObject({ loaded: 17, total: 17 })
     expect(catalog.vehicleMetadata).toEqual([

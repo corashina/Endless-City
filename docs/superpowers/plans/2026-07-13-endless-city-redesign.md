@@ -704,7 +704,7 @@ git diff --check
 
 Expected: zero type errors, all tests pass, Vite produces `dist/`, and Git reports no whitespace errors.
 
-- [ ] **Step 5: Run long-distance browser acceptance checks**
+- [x] **Step 5: Run long-distance browser acceptance checks**
 
 Verify all of the following in the running production build:
 
@@ -717,7 +717,7 @@ Verify all of the following in the running production build:
 - Confirm default UI has no FPS panel and `?debug=1` does.
 - Confirm the browser console has no errors.
 
-- [ ] **Step 6: Commit documentation and final verified state**
+- [x] **Step 6: Commit documentation and final verified state**
 
 Run:
 

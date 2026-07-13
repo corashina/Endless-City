@@ -5,7 +5,7 @@ import { BUILDING_CATALOG } from '../city/layout'
 import type { BuildingId } from '../city/types'
 import type { Direction, VehiclePrototypeMetadata } from '../traffic/types'
 
-const ASSET_BASE_URL = '/js/clusters'
+const ASSET_BASE_URL = '/clusters'
 const TOTAL_ASSET_REQUESTS = 17
 const DIRECTIONS: readonly Direction[] = ['east', 'west', 'north', 'south']
 
