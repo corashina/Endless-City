@@ -35,4 +35,18 @@ describe('chooseQualityProfile', () => {
   it('uses balanced for wide devices above two times pixel density', () => {
     expect(chooseQualityProfile({ width: 1440, devicePixelRatio: 2.01 }).id).toBe('balanced')
   })
+
+  it.each([
+    [767, 1, 'mobile'],
+    [768, 1, 'balanced'],
+    [1199, 1, 'balanced'],
+    [1200, 1, 'high'],
+    [1200, 2, 'high'],
+    [1200, 2.0000000000000004, 'balanced'],
+  ] as const)(
+    'selects %s CSS px at DPR %s as %s',
+    (width, devicePixelRatio, expectedId) => {
+      expect(chooseQualityProfile({ width, devicePixelRatio }).id).toBe(expectedId)
+    },
+  )
 })

@@ -32,15 +32,15 @@
 - Produces: `AssetCatalog.dispose(): void`, an uncached `loadAssetCatalog(onProgress)`, and app teardown ordering `assets.dispose()` before `context.dispose()`.
 - Consumes: existing GLTF prototypes, `SkeletonUtils.clone`, and `startOwnedLoop` teardown.
 
-- [ ] **Step 1: Write failing catalog lifecycle tests**
+- [x] **Step 1: Write failing catalog lifecycle tests**
 
 Add tests that build road/building/vehicle prototypes whose meshes share one `BufferGeometry`, one `Material`, and one `Texture`. Spy on all three `dispose()` methods, dispose twice, and require each spy once. Require `cloneBuilding()` and `cloneVehicle()` to throw `Asset catalog has been disposed` afterward. Also prove two independently loaded catalogs make two 17-request loader passes and return different prototype roots.
 
-- [ ] **Step 2: Write failing application ownership tests**
+- [x] **Step 2: Write failing application ownership tests**
 
 Extend `createRunnableCatalog()` with `dispose: vi.fn()`. Verify explicit/pagehide teardown calls catalog disposal once before scene disposal, repeated `handle.dispose()` remains idempotent, and an exception after catalog acquisition disposes both in the same order.
 
-- [ ] **Step 3: Run focused tests and verify red**
+- [x] **Step 3: Run focused tests and verify red**
 
 Run:
 
@@ -50,13 +50,13 @@ bun run test -- tests/assets.test.ts tests/app.test.ts
 
 Expected: failures because `AssetCatalog.dispose` is missing, the module promise is reusable, and `startApp` does not own catalog teardown.
 
-- [ ] **Step 4: Implement disposable uncached catalogs**
+- [x] **Step 4: Implement disposable uncached catalogs**
 
 In `src/rendering/assets.ts`, add `dispose()` to `AssetCatalog`. Inside `createCatalog`, keep a `disposed` flag, reject both clone methods after disposal, traverse unique prototype roots, collect unique geometries/materials/textures in sets, then dispose textures, materials, and geometries once. Remove `catalogPromise`; `loadAssetCatalog()` directly calls `loadAssetCatalogWithLoader(new GLTFLoader(), onProgress)`.
 
 In `src/app.ts`, retain the acquired catalog in outer scope and use one idempotent resource teardown that calls `assets?.dispose()` before `disposeContext()`. Invoke it from every owned-loop and bootstrap-failure path.
 
-- [ ] **Step 5: Verify focused green**
+- [x] **Step 5: Verify focused green**
 
 Run the focused command again. Expected: all asset and app lifecycle tests pass with no unhandled errors.
 
@@ -72,25 +72,25 @@ Run the focused command again. Expected: all asset and app lifecycle tests pass 
 - Produces: `CONTEXT_RESTORE_TIMEOUT_MS = 10_000` and recovery states `healthy | waiting | terminal`.
 - Consumes: `AppHandle.pause/resume`, overlay `showContextLost/showLoading/showReady/showError`, and browser context events.
 
-- [ ] **Step 1: Write the failing timeout test**
+- [x] **Step 1: Write the failing timeout test**
 
 Use fake timers. After a first cancelable loss, require restoring state and a paused loop. Advance 9,999 ms and require no error; advance one millisecond and require one error whose message explains WebGL restoration failure. Dispatch a late restore and progress callback and require no `showReady`, new `showLoading`, or resumed frame.
 
-- [ ] **Step 2: Write the failing repeated-loss test**
+- [x] **Step 2: Write the failing repeated-loss test**
 
 Dispatch loss, restore before 10 seconds, then a second loss. Require immediate `showError`, no second timer wait, and a late restore that cannot hide the error or resume. Dispose and require no pending timer or active recovery listener behavior.
 
-- [ ] **Step 3: Run the focused app tests and verify red**
+- [x] **Step 3: Run the focused app tests and verify red**
 
 Run: `bun run test -- tests/app.test.ts`
 
 Expected: timeout and second-loss tests fail because current recovery has only a boolean and always accepts restore.
 
-- [ ] **Step 4: Implement the state machine**
+- [x] **Step 4: Implement the state machine**
 
 Export the 10,000 ms constant. Track recovery state, lifetime loss count, and timer handle inside `startApp`. First loss enters `waiting`; timeout or any later loss calls one terminal transition that pauses, clears the timer, removes listeners, and reports the recovery error. Restore acts only from `waiting`. Asset progress and bootstrap completion update UI only outside `terminal`. Normal teardown clears timer/listeners idempotently.
 
-- [ ] **Step 5: Verify focused green**
+- [x] **Step 5: Verify focused green**
 
 Run the focused app tests again. Expected: all recovery and existing bootstrap/lifecycle cases pass.
 
@@ -114,43 +114,43 @@ Run the focused app tests again. Expected: all recovery and existing bootstrap/l
 - Produces: finite-positive fixed-step validation and numeric X-then-Z tile ordering through `diffTileWindow`.
 - Preserves: existing traffic, quality, loader fallback, and clone semantics.
 
-- [ ] **Step 1: Write failing fixed-step and tile-order tests**
+- [x] **Step 1: Write failing fixed-step and tile-order tests**
 
 Require `consumeFixedSteps` to throw for `0`, negative, `NaN`, and both infinities. Add mixed signed X/Z tile data whose lexicographic and numeric orders differ; expect numeric X then Z ordering. Update CityView planner coverage to assert it delegates to the same diff result.
 
-- [ ] **Step 2: Run focused utility tests and verify red**
+- [x] **Step 2: Run focused utility tests and verify red**
 
 Run: `bun run test -- tests/following.test.ts tests/tile-window.test.ts tests/city-view.test.ts`
 
 Expected: fixed-step invalid inputs and mixed-sign ordering fail.
 
-- [ ] **Step 3: Implement validation and one tile diff**
+- [x] **Step 3: Implement validation and one tile diff**
 
 Guard `stepSeconds` with `Number.isFinite(stepSeconds) && stepSeconds > 0`. In `tile-window.ts`, compare `GridCoordinate` values numerically by X then Z for retained, released, and requested entries. In CityView, remove the duplicate diff algorithm; build the current coordinate map and call `diffTileWindow(desiredTileWindow(...))`.
 
-- [ ] **Step 4: Verify focused utility green**
+- [x] **Step 4: Verify focused utility green**
 
 Run the focused utility command again. Expected: all pass.
 
-- [ ] **Step 5: Expand intersection and quality tables**
+- [x] **Step 5: Expand intersection and quality tables**
 
 Parameterize conflict-zone simulation for east/north, east/south, west/north, and west/south approaches using direction-correct starting progress. Add quality cases at widths 767, 768, 1199, and 1200 plus DPR 2 and the smallest representable value above 2.
 
-- [ ] **Step 6: Add asset failure/progress isolation tests before implementation**
+- [x] **Step 6: Add asset failure/progress isolation tests before implementation**
 
 Require a rejected road request to preserve its cause, rejected optional building and vehicle requests to use fallbacks, clone roots to be distinct while sharing prototype geometry/material, and a throwing progress callback not to reject otherwise successful loads.
 
-- [ ] **Step 7: Run these tests and verify red where behavior is missing**
+- [x] **Step 7: Run these tests and verify red where behavior is missing**
 
 Run: `bun run test -- tests/intersections.test.ts tests/quality.test.ts tests/assets.test.ts`
 
 Expected: progress-callback isolation fails before the implementation; table/failure tests validate or expose any remaining gaps.
 
-- [ ] **Step 8: Isolate progress notification exceptions**
+- [x] **Step 8: Isolate progress notification exceptions**
 
 Wrap each progress notification in a narrow `try/catch` that ignores observer errors without changing the corresponding loader result. Do not catch loader failures or catalog validation errors.
 
-- [ ] **Step 9: Verify the complete focused group**
+- [x] **Step 9: Verify the complete focused group**
 
 Run all test files modified in Tasks 1–3. Expected: all pass.
 
@@ -168,7 +168,7 @@ Run all test files modified in Tasks 1–3. Expected: all pass.
 **Interfaces:**
 - Produces: non-deprecated shadow selection, sub-320 px viewport support, clean ignored runtime artifacts, and accurate durable evidence.
 
-- [ ] **Step 1: Apply mechanical hygiene changes**
+- [x] **Step 1: Apply mechanical hygiene changes**
 
 Use `THREE.PCFShadowMap`, remove `min-width: 320px` from the root page rules, and add these ignore entries without deleting files:
 
@@ -179,7 +179,7 @@ dist/
 .superpowers/
 ```
 
-- [ ] **Step 2: Run the full automated gate**
+- [x] **Step 2: Run the full automated gate**
 
 Run:
 
@@ -192,18 +192,28 @@ git diff --check
 
 Expected: zero type errors, all tests pass, Vite emits `dist/`, whitespace passes, the chunk-size advisory remains visible, and the Three.js shadow deprecation warning is absent at runtime.
 
-- [ ] **Step 3: Run production browser smoke**
+- [x] **Step 3: Run production browser smoke**
 
 Serve the current `dist/`, open the default production page, and require ready state, a rendered city, hidden debug FPS, and zero console errors. In a separate controlled page, dispatch context loss/restore if supported and verify restoring then ready; dispatch a second loss and verify terminal error with visible Retry that late restore cannot hide. If synthetic context events are unavailable, record that limitation and rely on the passing jsdom integration tests for recovery.
 
-- [ ] **Step 4: Update evidence accurately**
+- [x] **Step 4: Update evidence accurately**
 
 Check every completed plan box and update the ignored Task 11 report commit list, final test counts, shadow-warning status, lifecycle fix, and browser-smoke result. Remove superseded warning claims.
 
-- [ ] **Step 5: Commit coherent fixes**
+- [x] **Step 5: Commit coherent fixes**
 
 Stage only intentional source, test, style, ignore, and durable documentation files. Leave ignored/generated files untouched. Commit with:
 
 ```powershell
 git commit -m "fix: close application lifecycle gaps"
 ```
+
+## Execution evidence
+
+- Catalog/app lifecycle RED: 4 intended failures across 24 focused tests; GREEN: 24/24.
+- Recovery RED: 2 intended failures across 19 app tests; GREEN: 19/19, including the 9,999/10,000 ms boundary, immediate second-loss escalation, late-event suppression, and cleanup.
+- Utility RED: 7 intended fixed-step/order failures; GREEN: 28/28 across following, tile-window, and CityView tests.
+- Edge matrix RED: only the missing progress-observer isolation failed; GREEN focused total: 76/76 across seven files.
+- Independent review found and the final pass fixed two additional bootstrap ownership gaps: pagehide during pending asset loading now disposes the context and eventual catalog without starting a loop, and loop-setup failure removes the acceptance hook. Reviewer cleanup edge cases for normal disposal while waiting and terminal timeout before bootstrap completion are also covered.
+- Final gate: typecheck exit 0; 15/15 files and 124/124 tests; build exit 0 with 32 modules, `index-zYyJ-Jwt.js` at 648.59 kB (165.34 kB gzip); `git diff --check` exit 0. The requested chunk-size advisory remained visible.
+- Production browser: default page reached ready, rendered the city and traffic, kept FPS hidden, and logged zero errors and zero warnings. The restricted browser context exposed neither synthetic custom-event dispatch nor `canvas.getContext`, so automated 19/19 app integration tests are the authoritative recovery evidence.

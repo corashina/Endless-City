@@ -9,7 +9,7 @@ import {
   WORLD_SEED,
 } from './config'
 import { CityView } from './rendering/city-view'
-import { loadAssetCatalog as loadAssets } from './rendering/assets'
+import { loadAssetCatalog as loadAssets, type AssetCatalog } from './rendering/assets'
 import { chooseQualityProfile } from './rendering/quality'
 import { createScene as createSceneContext } from './rendering/scene'
 import { TrafficView } from './rendering/traffic-view'
@@ -33,6 +33,8 @@ export const TRAFFIC_CONFIG = Object.freeze({
   protectedRadius: FOG_FAR,
   simulationRadius: FOG_FAR + BLOCK_SIZE * 2,
 } satisfies TrafficConfig)
+
+export const CONTEXT_RESTORE_TIMEOUT_MS = 10_000
 
 export interface AppElements {
   readonly canvas: HTMLCanvasElement
@@ -190,60 +192,126 @@ export async function startApp(
     throw error
   }
   let contextDisposed = false
+  let assetsDisposed = false
+  let assets: AssetCatalog | undefined
+  let bootstrapDisposed = false
+  let removeAcceptanceHook: () => void = () => undefined
   let recoveryListenersRemoved = false
   const disposeContext = (): void => {
     if (contextDisposed) return
     contextDisposed = true
     context.dispose()
   }
+  const disposeResources = (): void => {
+    if (assets === undefined || assetsDisposed) {
+      disposeContext()
+      return
+    }
+    assetsDisposed = true
+    try {
+      assets?.dispose()
+    } finally {
+      disposeContext()
+    }
+  }
   let handle: AppHandle | undefined
-  let contextLost = false
+  let recoveryState: 'healthy' | 'waiting' | 'terminal' = 'healthy'
+  let contextLossCount = 0
+  let recoveryTimer: number | undefined
   let bootstrapReady = false
   let lastLoadingProgress = { loaded: 0, total: 17 }
+  const recoveryIsTerminal = (): boolean => recoveryState === 'terminal'
 
-  const contextLostListener: EventListener = (event) => {
-    event.preventDefault()
-    contextLost = true
-    handle?.pause()
-    elements.overlay?.showContextLost()
-  }
-  const contextRestoredListener: EventListener = () => {
-    contextLost = false
-    if (bootstrapReady) elements.overlay?.showReady()
-    else elements.overlay?.showLoading(lastLoadingProgress.loaded, lastLoadingProgress.total)
-    handle?.resume()
+  const clearRecoveryTimer = (): void => {
+    if (recoveryTimer === undefined) return
+    window.clearTimeout(recoveryTimer)
+    recoveryTimer = undefined
   }
   const removeRecoveryListeners = (): void => {
     if (recoveryListenersRemoved) return
     recoveryListenersRemoved = true
+    clearRecoveryTimer()
     elements.canvas.removeEventListener('webglcontextlost', contextLostListener)
     elements.canvas.removeEventListener('webglcontextrestored', contextRestoredListener)
+  }
+  const failRecovery = (): void => {
+    if (recoveryState === 'terminal') return
+    recoveryState = 'terminal'
+    handle?.pause()
+    removeRecoveryListeners()
+    reportError(new Error('WebGL context could not be restored. Reload to retry.'))
+  }
+
+  const contextLostListener: EventListener = (event) => {
+    event.preventDefault()
+    if (recoveryState === 'terminal') return
+    contextLossCount += 1
+    handle?.pause()
+    if (contextLossCount > 1) {
+      failRecovery()
+      return
+    }
+    recoveryState = 'waiting'
+    elements.overlay?.showContextLost()
+    clearRecoveryTimer()
+    recoveryTimer = window.setTimeout(failRecovery, CONTEXT_RESTORE_TIMEOUT_MS)
+  }
+  const contextRestoredListener: EventListener = () => {
+    if (recoveryState !== 'waiting') return
+    clearRecoveryTimer()
+    recoveryState = 'healthy'
+    if (bootstrapReady) elements.overlay?.showReady()
+    else elements.overlay?.showLoading(lastLoadingProgress.loaded, lastLoadingProgress.total)
+    handle?.resume()
   }
 
   elements.canvas.addEventListener('webglcontextlost', contextLostListener)
   elements.canvas.addEventListener('webglcontextrestored', contextRestoredListener)
 
+  const disposedHandle: AppHandle = {
+    pause() {},
+    resume() {},
+    dispose() {},
+  }
+  const bootstrapPageHideListener: EventListener = () => {
+    if (bootstrapDisposed) return
+    bootstrapDisposed = true
+    removeRecoveryListeners()
+    disposeResources()
+    elements.overlay?.dispose()
+  }
+  const removeBootstrapPageHideListener = (): void => {
+    window.removeEventListener('pagehide', bootstrapPageHideListener)
+  }
+  window.addEventListener('pagehide', bootstrapPageHideListener)
+
   try {
-    const assets = await (dependencies.loadAssetCatalog ?? loadAssets)(({ loaded, total }) => {
+    const loadedAssets = await (dependencies.loadAssetCatalog ?? loadAssets)(({ loaded, total }) => {
+      if (bootstrapDisposed || recoveryState === 'terminal') return
       lastLoadingProgress = { loaded, total }
       elements.overlay?.showLoading(loaded, total)
       if (elements.loadingProgress !== null && elements.loadingProgress !== undefined) {
         elements.loadingProgress.textContent = `${loaded} / ${total}`
       }
     })
-    const cityView = new CityView(context.scene, assets, profile)
-    const traffic = assets.vehicleMetadata.length === 0
+    assets = loadedAssets
+    if (bootstrapDisposed) {
+      disposeResources()
+      return disposedHandle
+    }
+    const cityView = new CityView(context.scene, loadedAssets, profile)
+    const traffic = loadedAssets.vehicleMetadata.length === 0
       ? undefined
       : new TrafficSimulation({
           count: profile.trafficCount,
           seed: WORLD_SEED,
           camera: { x: context.camera.position.x, z: context.camera.position.z },
-          prototypes: assets.vehicleMetadata,
+          prototypes: loadedAssets.vehicleMetadata,
           config: TRAFFIC_CONFIG,
         })
     const trafficView = traffic === undefined
       ? undefined
-      : new TrafficView(context.scene, assets, traffic.vehicles)
+      : new TrafficView(context.scene, loadedAssets, traffic.vehicles)
     const initialLogicalCamera = elements.acceptance?.initialLogicalCamera
     let initialOrigin: WorldPoint = { x: 0, z: 0 }
     if (initialLogicalCamera !== undefined) {
@@ -263,7 +331,7 @@ export async function startApp(
       },
       origin: initialOrigin,
     }
-    const removeAcceptanceHook = installAcceptanceHook(
+    removeAcceptanceHook = installAcceptanceHook(
       elements.acceptance?.debug === true,
       (): AcceptanceSnapshot => {
         const city = cityView.acceptanceSnapshot()
@@ -341,6 +409,7 @@ export async function startApp(
       elements.overlay?.updateFps(timestamp)
     }
 
+    removeBootstrapPageHideListener()
     handle = startOwnedLoop({
       windowTarget: window,
       documentTarget: document,
@@ -352,7 +421,7 @@ export async function startApp(
       disposeScene: () => {
         cameraController.dispose()
         removeRecoveryListeners()
-        disposeContext()
+        disposeResources()
       },
       disposeApplication: () => {
         removeAcceptanceHook()
@@ -360,17 +429,19 @@ export async function startApp(
       },
       onError: reportError,
     })
-    if (contextLost) handle.pause()
+    if (recoveryState !== 'healthy') handle.pause()
     bootstrapReady = true
     elements.loading?.remove()
-    completeOverlayBootstrap(elements.overlay, contextLost)
+    completeOverlayBootstrap(elements.overlay, recoveryState !== 'healthy')
 
     return handle
   } catch (error) {
+    removeBootstrapPageHideListener()
     removeRecoveryListeners()
-    if (handle === undefined) disposeContext()
+    if (handle === undefined) disposeResources()
     else handle.dispose()
-    reportError(error)
+    removeAcceptanceHook()
+    if (!recoveryIsTerminal()) reportError(error)
     throw error
   }
 }

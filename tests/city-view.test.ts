@@ -3,6 +3,7 @@ import type { OrbitControlsEventMap } from 'three/addons/controls/OrbitControls.
 import { describe, expect, it, vi } from 'vitest'
 import { CameraController } from '../src/camera/controller'
 import { chooseTile } from '../src/city/layout'
+import { desiredTileWindow, diffTileWindow } from '../src/city/tile-window'
 import { coordinateKey, type GridCoordinate } from '../src/city/types'
 import { WORLD_SEED } from '../src/config'
 import type { AssetCatalog } from '../src/rendering/assets'
@@ -23,6 +24,17 @@ function applyPlan(
 }
 
 describe('planTileAssignments', () => {
+  it('uses the shared tile-window diff contract', () => {
+    const assignments = new Map([
+      ['0:10', { x: 0, z: 10 }],
+      ['0:2', { x: 0, z: 2 }],
+    ])
+
+    expect(planTileAssignments(assignments, { x: 0, z: 6 }, 3)).toEqual(
+      diffTileWindow(assignments, desiredTileWindow({ x: 0, z: 6 }, 3)),
+    )
+  })
+
   it('recycles one edge of a fixed-size pool after moving one block east', () => {
     const assignments = new Map<string, GridCoordinate>()
     const initial = planTileAssignments(assignments, { x: 0, z: 0 }, 9)
@@ -72,6 +84,7 @@ function createCatalog(): { catalog: AssetCatalog; cloneCounts: Map<string, numb
       cloneVehicle() {
         return null
       },
+      dispose: vi.fn(),
     },
   }
 }

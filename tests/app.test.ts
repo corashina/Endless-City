@@ -2,7 +2,13 @@
 
 import * as THREE from 'three'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { completeOverlayBootstrap, startApp, startOwnedLoop } from '../src/app'
+import {
+  completeOverlayBootstrap,
+  CONTEXT_RESTORE_TIMEOUT_MS,
+  startApp,
+  startOwnedLoop,
+  type StartAppDependencies,
+} from '../src/app'
 import * as appModule from '../src/app'
 import type { AssetCatalog } from '../src/rendering/assets'
 import type { SceneContext } from '../src/rendering/scene'
@@ -25,7 +31,10 @@ function createOverlayHarness() {
   }
 }
 
-function createRunnableCatalog(): AssetCatalog {
+function createRunnableCatalog(
+  onDispose: () => void = () => undefined,
+  cloneBuilding: AssetCatalog['cloneBuilding'] = () => null,
+): AssetCatalog {
   const vehicleMetadata = (['east', 'west', 'north', 'south'] as const).map((direction) => ({
     id: direction,
     direction,
@@ -37,8 +46,9 @@ function createRunnableCatalog(): AssetCatalog {
     vehiclePrototypes: [],
     vehicleMetadata,
     vehiclesByDirection: new Map(),
-    cloneBuilding: () => null,
+    cloneBuilding,
     cloneVehicle: () => null,
+    dispose: vi.fn(onDispose),
   }
 }
 
@@ -320,6 +330,61 @@ describe('startApp setup cleanup', () => {
     expect(dispose).toHaveBeenCalledOnce()
   })
 
+  it('owns pagehide while assets are still loading and disposes eventual assets', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const catalog = createRunnableCatalog()
+    let resolveAssets: (catalog: AssetCatalog) => void = () => undefined
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 79)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const appPromise = startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: () => new Promise((resolve) => { resolveAssets = resolve }),
+    })
+
+    window.dispatchEvent(new Event('pagehide'))
+    resolveAssets(catalog)
+    const handle = await appPromise
+    try {
+      expect(scene.dispose).toHaveBeenCalledOnce()
+      expect(catalog.dispose).toHaveBeenCalledOnce()
+      expect(overlay.dispose).toHaveBeenCalledOnce()
+      expect(requestAnimationFrame).not.toHaveBeenCalled()
+    } finally {
+      handle.dispose()
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
+    }
+  })
+
+  it('removes the acceptance hook when owned-loop setup throws', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const setupError = new Error('requestAnimationFrame unavailable')
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => { throw setupError })
+
+    await expect(startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+      acceptance: { debug: true },
+    }, {
+      createScene: () => createRunnableScene().context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+    })).rejects.toBe(setupError)
+
+    expect((window as unknown as { __ENDLESS_CITY_ACCEPTANCE__?: unknown })
+      .__ENDLESS_CITY_ACCEPTANCE__).toBeUndefined()
+    expect(overlay.showError).toHaveBeenCalledWith(setupError)
+    requestAnimationFrame.mockRestore()
+  })
+
   it('returns to loading when WebGL is restored before assets are ready', async () => {
     const canvas = document.createElement('canvas')
     const overlay = createOverlayHarness()
@@ -354,6 +419,170 @@ describe('startApp setup cleanup', () => {
     expect(dispose).toHaveBeenCalledOnce()
   })
 
+  it('escalates an unrestored first context loss after ten seconds and stays terminal', async () => {
+    vi.useFakeTimers()
+    try {
+      const canvas = document.createElement('canvas')
+      const overlay = createOverlayHarness()
+      const scene = createRunnableScene()
+      const catalog = createRunnableCatalog()
+      let reportProgress: Parameters<StartAppDependencies['loadAssetCatalog']>[0] = () => undefined
+      const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+        .mockImplementation(() => 81)
+      const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+        .mockImplementation(() => undefined)
+      const handle = await startApp({
+        canvas,
+        overlay: overlay as unknown as OverlayController,
+      }, {
+        createScene: () => scene.context,
+        loadAssetCatalog: async (onProgress) => {
+          reportProgress = onProgress
+          return catalog
+        },
+      })
+
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      expect(CONTEXT_RESTORE_TIMEOUT_MS).toBe(10_000)
+      await vi.advanceTimersByTimeAsync(CONTEXT_RESTORE_TIMEOUT_MS - 1)
+      expect(overlay.showError).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(1)
+      expect(overlay.showError).toHaveBeenCalledOnce()
+      expect(overlay.showError).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'WebGL context could not be restored. Reload to retry.',
+      }))
+
+      canvas.dispatchEvent(new Event('webglcontextrestored'))
+      reportProgress?.({ loaded: 17, total: 17, url: '/late.glb' })
+      expect(overlay.showReady).toHaveBeenCalledOnce()
+      expect(overlay.showLoading).not.toHaveBeenCalled()
+      expect(requestAnimationFrame).toHaveBeenCalledOnce()
+
+      handle.dispose()
+      expect(vi.getTimerCount()).toBe(0)
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('escalates a second context loss immediately and ignores a late restore', async () => {
+    vi.useFakeTimers()
+    try {
+      const canvas = document.createElement('canvas')
+      const overlay = createOverlayHarness()
+      const scene = createRunnableScene()
+      const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+        .mockImplementation(() => 82)
+      const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+        .mockImplementation(() => undefined)
+      const handle = await startApp({
+        canvas,
+        overlay: overlay as unknown as OverlayController,
+      }, {
+        createScene: () => scene.context,
+        loadAssetCatalog: async () => createRunnableCatalog(),
+      })
+
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      await vi.advanceTimersByTimeAsync(1_000)
+      canvas.dispatchEvent(new Event('webglcontextrestored'))
+      expect(overlay.showReady).toHaveBeenCalledTimes(2)
+      expect(requestAnimationFrame).toHaveBeenCalledTimes(2)
+
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      expect(overlay.showError).toHaveBeenCalledOnce()
+      expect(vi.getTimerCount()).toBe(0)
+
+      canvas.dispatchEvent(new Event('webglcontextrestored'))
+      expect(overlay.showReady).toHaveBeenCalledTimes(2)
+      expect(requestAnimationFrame).toHaveBeenCalledTimes(2)
+
+      handle.dispose()
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      expect(overlay.showError).toHaveBeenCalledOnce()
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clears waiting recovery state when the application is disposed', async () => {
+    vi.useFakeTimers()
+    try {
+      const canvas = document.createElement('canvas')
+      const overlay = createOverlayHarness()
+      const scene = createRunnableScene()
+      const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+        .mockImplementation(() => 83)
+      const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+        .mockImplementation(() => undefined)
+      const handle = await startApp({
+        canvas,
+        overlay: overlay as unknown as OverlayController,
+      }, {
+        createScene: () => scene.context,
+        loadAssetCatalog: async () => createRunnableCatalog(),
+      })
+
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      expect(vi.getTimerCount()).toBe(1)
+      handle.dispose()
+      expect(vi.getTimerCount()).toBe(0)
+
+      canvas.dispatchEvent(new Event('webglcontextrestored'))
+      await vi.advanceTimersByTimeAsync(CONTEXT_RESTORE_TIMEOUT_MS)
+      expect(overlay.showReady).toHaveBeenCalledOnce()
+      expect(overlay.showError).not.toHaveBeenCalled()
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps timeout escalation terminal when pending bootstrap later completes', async () => {
+    vi.useFakeTimers()
+    try {
+      const canvas = document.createElement('canvas')
+      const overlay = createOverlayHarness()
+      const scene = createRunnableScene()
+      let resolveAssets: (catalog: AssetCatalog) => void = () => undefined
+      const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+        .mockImplementation(() => 84)
+      const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+        .mockImplementation(() => undefined)
+      const appPromise = startApp({
+        canvas,
+        overlay: overlay as unknown as OverlayController,
+      }, {
+        createScene: () => scene.context,
+        loadAssetCatalog: () => new Promise((resolve) => { resolveAssets = resolve }),
+      })
+
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      await vi.advanceTimersByTimeAsync(CONTEXT_RESTORE_TIMEOUT_MS)
+      expect(overlay.showError).toHaveBeenCalledOnce()
+
+      resolveAssets(createRunnableCatalog())
+      const handle = await appPromise
+      canvas.dispatchEvent(new Event('webglcontextrestored'))
+
+      expect(overlay.showReady).not.toHaveBeenCalled()
+      expect(overlay.showLoading).not.toHaveBeenCalled()
+      expect(requestAnimationFrame).toHaveBeenCalledOnce()
+      expect(cancelAnimationFrame).toHaveBeenCalledOnce()
+      handle.dispose()
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('uses outer application disposal for pagehide exactly once', async () => {
     const canvas = document.createElement('canvas')
     const overlay = createOverlayHarness()
@@ -386,6 +615,93 @@ describe('startApp setup cleanup', () => {
     expect(cancelAnimationFrame).toHaveBeenCalledOnce()
     expect(scene.dispose).toHaveBeenCalledOnce()
     expect(overlay.dispose).toHaveBeenCalledOnce()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
+  })
+
+  it('disposes app-owned assets before the scene context exactly once', async () => {
+    const order: string[] = []
+    const canvas = document.createElement('canvas')
+    const scene = createRunnableScene()
+    scene.dispose.mockImplementation(() => { order.push('scene') })
+    const catalog = createRunnableCatalog(() => { order.push('assets') })
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 71)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+
+    const handle = await startApp({ canvas }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => catalog,
+    })
+    handle.dispose()
+    handle.dispose()
+
+    expect(order).toEqual(['assets', 'scene'])
+    expect(catalog.dispose).toHaveBeenCalledOnce()
+    expect(scene.dispose).toHaveBeenCalledOnce()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
+  })
+
+  it('disposes app-owned assets before the scene after a frame setup failure', async () => {
+    const order: string[] = []
+    const canvas = document.createElement('canvas')
+    const scene = createRunnableScene()
+    scene.dispose.mockImplementation(() => { order.push('scene') })
+    const setupError = new Error('building clone failed')
+    const catalog = createRunnableCatalog(
+      () => { order.push('assets') },
+      () => { throw setupError },
+    )
+    let frame: FrameRequestCallback | undefined
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frame = callback
+        return 72
+      })
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const onError = vi.fn()
+
+    await startApp({ canvas, onError }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => catalog,
+    })
+    frame?.(0)
+
+    expect(onError).toHaveBeenCalledWith(setupError)
+    expect(order).toEqual(['assets', 'scene'])
+    expect(catalog.dispose).toHaveBeenCalledOnce()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
+  })
+
+  it('loads a fresh catalog for a restarted application', async () => {
+    const canvas = document.createElement('canvas')
+    const catalogs = [createRunnableCatalog(), createRunnableCatalog()]
+    const loadAssetCatalog = vi.fn()
+      .mockResolvedValueOnce(catalogs[0])
+      .mockResolvedValueOnce(catalogs[1])
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 73)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+
+    const first = await startApp({ canvas }, {
+      createScene: () => createRunnableScene().context,
+      loadAssetCatalog,
+    })
+    first.dispose()
+    const second = await startApp({ canvas }, {
+      createScene: () => createRunnableScene().context,
+      loadAssetCatalog,
+    })
+    second.dispose()
+
+    expect(loadAssetCatalog).toHaveBeenCalledTimes(2)
+    expect(catalogs[0]!.dispose).toHaveBeenCalledOnce()
+    expect(catalogs[1]!.dispose).toHaveBeenCalledOnce()
     requestAnimationFrame.mockRestore()
     cancelAnimationFrame.mockRestore()
   })

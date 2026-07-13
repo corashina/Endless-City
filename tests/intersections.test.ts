@@ -5,6 +5,7 @@ import {
   type IntersectionReservations,
 } from '../src/traffic/intersections'
 import type { TrafficConfig, VehicleState } from '../src/traffic/types'
+import type { Direction } from '../src/traffic/types'
 
 const config: TrafficConfig = {
   minimumGap: 2,
@@ -32,7 +33,9 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => ({
 })
 
 const intersectsConflictZone = (state: VehicleState): boolean => {
-  const crossingProgress = -20
+  const crossingProgress = state.lane.direction === 'east' || state.lane.direction === 'north'
+    ? -20
+    : 20
   const frontBumper = state.progress + state.length / 2
   const rearBumper = state.progress - state.length / 2
 
@@ -108,21 +111,38 @@ describe('intersection reservations', () => {
     expect(holder.reservationKey).toBeNull()
   })
 
-  it('keeps perpendicular vehicles out of the conflict zone together', () => {
-    const eastbound = vehicle({ id: 2, speed: 8 })
-    const northbound = vehicle({
-      id: 1,
-      lane: { direction: 'north', line: 0 },
+  it.each([
+    ['east', 'north'],
+    ['east', 'south'],
+    ['west', 'north'],
+    ['west', 'south'],
+  ] as const)(
+    'keeps %s and %s vehicles out of the conflict zone together',
+    (horizontalDirection: Direction, verticalDirection: Direction) => {
+    const horizontalProgress = horizontalDirection === 'east' ? -31 : 9
+    const verticalProgress = verticalDirection === 'north' ? -31 : 9
+    const horizontal = vehicle({
+      id: 2,
+      lane: { direction: horizontalDirection, line: 0 },
+      previousProgress: horizontalProgress,
+      progress: horizontalProgress,
       speed: 8,
     })
-    const vehicles = [eastbound, northbound]
+    const vertical = vehicle({
+      id: 1,
+      lane: { direction: verticalDirection, line: 0 },
+      previousProgress: verticalProgress,
+      progress: verticalProgress,
+      speed: 8,
+    })
+    const vehicles = [horizontal, vertical]
     const reservations: IntersectionReservations = new Map()
 
     for (let step = 0; step < 600; step += 1) {
       const intersectionStops = updateIntersectionReservations(vehicles, reservations, config)
       stepFollowing(vehicles, 1 / 60, config, intersectionStops)
 
-      expect(intersectsConflictZone(eastbound) && intersectsConflictZone(northbound)).toBe(false)
+      expect(intersectsConflictZone(horizontal) && intersectsConflictZone(vertical)).toBe(false)
     }
   })
 })

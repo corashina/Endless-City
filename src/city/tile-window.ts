@@ -6,6 +6,11 @@ export interface TileWindowDiff {
   readonly requested: GridCoordinate[]
 }
 
+export const compareGridCoordinates = (
+  left: GridCoordinate,
+  right: GridCoordinate,
+): number => left.x - right.x || left.z - right.z
+
 export function desiredTileWindow(center: GridCoordinate, diameter: number): GridCoordinate[] {
   if (!Number.isInteger(diameter) || diameter <= 0 || diameter % 2 === 0) {
     throw new Error('diameter must be a positive odd integer')
@@ -28,15 +33,17 @@ export function diffTileWindow(
   desired: readonly GridCoordinate[],
 ): TileWindowDiff {
   const desiredByKey = new Map(desired.map((coordinate) => [coordinateKey(coordinate), coordinate]))
-  const retainedKeys = [...current.keys()]
-    .filter((key) => desiredByKey.has(key))
-    .sort()
-  const releasedKeys = [...current.keys()]
-    .filter((key) => !desiredByKey.has(key))
-    .sort()
+  const retainedKeys = [...current.entries()]
+    .filter(([key]) => desiredByKey.has(key))
+    .sort(([, left], [, right]) => compareGridCoordinates(left, right))
+    .map(([key]) => key)
+  const releasedKeys = [...current.entries()]
+    .filter(([key]) => !desiredByKey.has(key))
+    .sort(([, left], [, right]) => compareGridCoordinates(left, right))
+    .map(([key]) => key)
   const requested = [...desiredByKey.entries()]
     .filter(([key]) => !current.has(key))
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([, left], [, right]) => compareGridCoordinates(left, right))
     .map(([, coordinate]) => coordinate)
 
   return { retainedKeys, releasedKeys, requested }

@@ -1,6 +1,10 @@
 import * as THREE from 'three'
 import { chooseTile } from '../city/layout'
-import { desiredTileWindow } from '../city/tile-window'
+import {
+  compareGridCoordinates,
+  desiredTileWindow,
+  diffTileWindow,
+} from '../city/tile-window'
 import {
   coordinateKey,
   type BuildingId,
@@ -20,25 +24,11 @@ export interface TileAssignmentPlan {
 }
 
 export function planTileAssignments(
-  currentAssignments: ReadonlyMap<string, unknown>,
+  currentAssignments: ReadonlyMap<string, GridCoordinate>,
   center: GridCoordinate,
   diameter: number,
 ): TileAssignmentPlan {
-  const desiredByKey = new Map(
-    desiredTileWindow(center, diameter).map((coordinate) => [coordinateKey(coordinate), coordinate]),
-  )
-  const retainedKeys = [...currentAssignments.keys()]
-    .filter((key) => desiredByKey.has(key))
-    .sort()
-  const releasedKeys = [...currentAssignments.keys()]
-    .filter((key) => !desiredByKey.has(key))
-    .sort()
-  const requested = [...desiredByKey.entries()]
-    .filter(([key]) => !currentAssignments.has(key))
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([, coordinate]) => coordinate)
-
-  return { retainedKeys, releasedKeys, requested }
+  return diffTileWindow(currentAssignments, desiredTileWindow(center, diameter))
 }
 
 interface PlotTransform {
@@ -89,7 +79,11 @@ export class CityView {
   }
 
   update(centerCell: GridCoordinate, origin: WorldPoint): void {
-    const plan = planTileAssignments(this.assignments, centerCell, this.profile.tileDiameter)
+    const currentCoordinates = new Map<string, GridCoordinate>()
+    for (const [key, slot] of this.assignments) {
+      if (slot.coordinate !== undefined) currentCoordinates.set(key, slot.coordinate)
+    }
+    const plan = planTileAssignments(currentCoordinates, centerCell, this.profile.tileDiameter)
     const available: BuildingSlot[] = []
 
     for (const key of plan.releasedKeys) {
@@ -118,7 +112,10 @@ export class CityView {
     readonly visibleAssignments: readonly AcceptanceBuildingAssignment[]
   } {
     const visibleAssignments = [...this.assignments.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([, left], [, right]) => {
+        if (left.coordinate === undefined || right.coordinate === undefined) return 0
+        return compareGridCoordinates(left.coordinate, right.coordinate)
+      })
       .map(([, slot]) => {
         const coordinate = slot.coordinate
         const buildingId = slot.buildingId

@@ -85,6 +85,15 @@ describe('vehicle following', () => {
 })
 
 describe('fixed-step accumulation', () => {
+  it.each([0, -0.01, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects invalid stepSeconds %s',
+    (stepSeconds) => {
+      expect(() => consumeFixedSteps(0, 0, stepSeconds, 0.25, () => undefined)).toThrow(
+        'stepSeconds must be a finite positive number',
+      )
+    },
+  )
+
   it('produces the same simulation progress across different render frame splits', () => {
     const simulate = (renderFrames: number): VehicleState => {
       const simulatedVehicle = vehicle({ desiredSpeed: 6 })

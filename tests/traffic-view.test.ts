@@ -58,6 +58,7 @@ function createCatalog(): { catalog: AssetCatalog; cloneCounts: Map<string, numb
         clone.scale.set(2, 3, 4)
         return clone
       },
+      dispose() {},
     },
   }
 }

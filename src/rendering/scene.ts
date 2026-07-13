@@ -96,7 +96,7 @@ export function createScene(canvas: HTMLCanvasElement, profile: QualityProfile):
   })
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.shadowMap.type = THREE.PCFShadowMap
   resizeSceneViewport(renderer, graph.camera, profile, {
     width,
     height,

@@ -93,6 +93,9 @@ export const consumeFixedSteps = (
   maximumFrameSeconds: number,
   step: () => void,
 ): FixedStepResult => {
+  if (!Number.isFinite(stepSeconds) || stepSeconds <= 0) {
+    throw new RangeError('stepSeconds must be a finite positive number')
+  }
   const clampedFrameSeconds = Math.min(Math.max(frameSeconds, 0), maximumFrameSeconds)
   const totalSeconds = accumulator + clampedFrameSeconds
   const tolerance = Number.EPSILON * Math.max(1, Math.abs(totalSeconds / stepSeconds))

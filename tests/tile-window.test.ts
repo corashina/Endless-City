@@ -26,7 +26,7 @@ describe('desiredTileWindow', () => {
 })
 
 describe('diffTileWindow', () => {
-  it('sorts retained, released, and requested entries by coordinate key', () => {
+  it('sorts retained, released, and requested entries numerically by x then z', () => {
     const current = new Map([
       ['2:0', { x: 2, z: 0 }],
       ['-1:0', { x: -1, z: 0 }],
@@ -42,8 +42,25 @@ describe('diffTileWindow', () => {
 
     expect(diffTileWindow(current, desired)).toEqual({
       retainedKeys: ['-1:0', '0:0'],
-      releasedKeys: ['10:0', '2:0'],
+      releasedKeys: ['2:0', '10:0'],
       requested: [{ x: -2, z: 0 }, { x: 3, z: 0 }],
     })
+  })
+
+  it('orders mixed signed z coordinates numerically instead of lexicographically', () => {
+    const coordinates = [
+      { x: 0, z: 10 },
+      { x: 0, z: -2 },
+      { x: 0, z: 2 },
+      { x: 0, z: -10 },
+    ]
+    const current = new Map(coordinates.map((coordinate) => [coordinateKey(coordinate), coordinate]))
+
+    expect(diffTileWindow(current, coordinates).retainedKeys).toEqual([
+      '0:-10',
+      '0:-2',
+      '0:2',
+      '0:10',
+    ])
   })
 })

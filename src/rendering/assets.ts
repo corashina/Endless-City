@@ -35,6 +35,7 @@ export interface AssetCatalog {
   readonly vehiclesByDirection: ReadonlyMap<Direction, readonly VehiclePrototype[]>
   cloneBuilding(id: BuildingId): THREE.Object3D | null
   cloneVehicle(id: string): THREE.Object3D | null
+  dispose(): void
 }
 
 export type BuildingLoadResults = ReadonlyMap<BuildingId, THREE.Object3D | null>
@@ -110,20 +111,71 @@ function createCatalog(
   const vehicleMetadata = Object.freeze(vehicles.map(({ id, length, direction }) =>
     Object.freeze({ id, length, direction }),
   ))
+  const vehiclesByDirection = groupVehiclesByDirection(vehicles)
+
+  let disposed = false
+  const assertActive = (): void => {
+    if (disposed) throw new Error('Asset catalog has been disposed')
+  }
 
   return {
-    road,
-    buildings,
-    vehiclePrototypes: vehicles,
+    get road() {
+      assertActive()
+      return road
+    },
+    get buildings() {
+      assertActive()
+      return buildings
+    },
+    get vehiclePrototypes() {
+      assertActive()
+      return vehicles
+    },
     vehicleMetadata,
-    vehiclesByDirection: groupVehiclesByDirection(vehicles),
+    get vehiclesByDirection() {
+      assertActive()
+      return vehiclesByDirection
+    },
     cloneBuilding(id) {
+      assertActive()
       const prototype = buildings.get(id)
       return prototype === null || prototype === undefined ? null : cloneObject(prototype)
     },
     cloneVehicle(id) {
+      assertActive()
       const prototype = vehicleById.get(id)
       return prototype === undefined ? null : cloneObject(prototype)
+    },
+    dispose() {
+      if (disposed) return
+      disposed = true
+
+      const roots = new Set<THREE.Object3D>([
+        road,
+        ...[...buildings.values()].filter((root): root is THREE.Object3D => root !== null),
+        ...vehicles.map(({ object }) => object),
+      ])
+      const geometries = new Set<THREE.BufferGeometry>()
+      const materials = new Set<THREE.Material>()
+      const textures = new Set<THREE.Texture>()
+
+      for (const root of roots) {
+        root.traverse((object) => {
+          if (!(object instanceof THREE.Mesh)) return
+          geometries.add(object.geometry)
+          const meshMaterials = Array.isArray(object.material) ? object.material : [object.material]
+          for (const material of meshMaterials) {
+            materials.add(material)
+            for (const value of Object.values(material)) {
+              if (value instanceof THREE.Texture) textures.add(value)
+            }
+          }
+        })
+      }
+
+      for (const texture of textures) texture.dispose()
+      for (const material of materials) material.dispose()
+      for (const geometry of geometries) geometry.dispose()
     },
   }
 }
@@ -144,7 +196,11 @@ export async function loadAssetCatalogWithLoader(
       return await loader.loadAsync(url)
     } finally {
       loaded += 1
-      onProgress({ loaded, total: TOTAL_ASSET_REQUESTS, url })
+      try {
+        onProgress({ loaded, total: TOTAL_ASSET_REQUESTS, url })
+      } catch {
+        // Progress observers are advisory and must not change request outcomes.
+      }
     }
   }))
 
@@ -185,11 +241,8 @@ export async function loadAssetCatalogWithLoader(
   )
 }
 
-let catalogPromise: Promise<AssetCatalog> | undefined
-
 export function loadAssetCatalog(
   onProgress: (progress: AssetProgress) => void = () => undefined,
 ): Promise<AssetCatalog> {
-  catalogPromise ??= loadAssetCatalogWithLoader(new GLTFLoader(), onProgress)
-  return catalogPromise
+  return loadAssetCatalogWithLoader(new GLTFLoader(), onProgress)
 }
