@@ -64,6 +64,15 @@ describe('vehicle following', () => {
     expect(clearVehicle.progress).toBeGreaterThan(0)
   })
 
+  it('decelerates a clear overspeed vehicle at the comfortable braking rate', () => {
+    const overspeedVehicle = vehicle({ speed: 20, desiredSpeed: 10 })
+
+    stepFollowing([overspeedVehicle], 1, config)
+
+    expect(overspeedVehicle.speed).toBe(16)
+    expect(overspeedVehicle.progress).toBe(16)
+  })
+
   it('treats a stop progress as a zero-speed virtual leader', () => {
     const stoppingVehicle = vehicle({ speed: 10 })
     const stops = new Map([[stoppingVehicle.id, 10]])

@@ -65,7 +65,12 @@ export const stepFollowing = (
       const desiredGap = config.minimumGap + vehicle.speed * config.timeHeadway
       const speed = gap < desiredGap
         ? Math.max(0, vehicle.speed - config.comfortableBraking * deltaSeconds)
-        : Math.min(vehicle.desiredSpeed, vehicle.speed + config.maximumAcceleration * deltaSeconds)
+        : vehicle.speed > vehicle.desiredSpeed
+          ? Math.max(
+              vehicle.desiredSpeed,
+              vehicle.speed - config.comfortableBraking * deltaSeconds,
+            )
+          : Math.min(vehicle.desiredSpeed, vehicle.speed + config.maximumAcceleration * deltaSeconds)
       const proposedProgress = vehicle.progress + speed * deltaSeconds
 
       if (leader === undefined) {
