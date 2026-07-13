@@ -6,9 +6,11 @@ const loadingProgress = loading?.querySelector<HTMLElement>('p')
 
 if (canvas === null) throw new Error('Missing #city-canvas')
 
-void startApp({ canvas, loading, loadingProgress }).catch((error: unknown) => {
+const reportError = (error: unknown): void => {
   console.error(error)
   if (loadingProgress !== null && loadingProgress !== undefined) {
     loadingProgress.textContent = 'Unable to load city'
   }
-})
+}
+
+void startApp({ canvas, loading, loadingProgress, onError: reportError }).catch(reportError)
