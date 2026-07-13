@@ -36,7 +36,7 @@
 - Consumes: `AppHandle.pause()`, `AppHandle.resume()`, `AppHandle.dispose()`.
 - Produces: `OwnedLoopInput.onPageFreeze?: () => void` and BFCache-aware page transition listeners.
 
-- [ ] **Step 1: Add a public transition-event test helper and failing ready-loop tests**
+- [x] **Step 1: Add a public transition-event test helper and failing ready-loop tests**
 
 ```ts
 function pageTransition(type: 'pagehide' | 'pageshow', persisted: boolean): Event {
@@ -66,13 +66,13 @@ it('does not resume a loop that was paused before persisted pagehide', () => {
 
 Also assert that non-persisted `pagehide` still disposes, duplicate persisted hides are idempotent, and neither lifecycle event has an effect after `handle.dispose()`.
 
-- [ ] **Step 2: Run the focused tests and verify the red state**
+- [x] **Step 2: Run the focused tests and verify the red state**
 
 Run: `bun run test -- tests/app.test.ts`
 
 Expected: FAIL because persisted `pagehide` currently disposes the scene and no `pageshow` listener resumes the loop.
 
-- [ ] **Step 3: Implement minimal ready-loop suspension**
+- [x] **Step 3: Implement minimal ready-loop suspension**
 
 ```ts
 const isPersistedPageTransition = (event: Event): boolean =>
@@ -104,7 +104,7 @@ const pageShowListener: EventListener = (event) => {
 
 Register and remove both transition listeners in normal and exceptional setup/teardown paths. Add `onPageFreeze?: () => void` to `OwnedLoopInput`; `startApp` passes `() => { previousTimestamp = undefined }` so the restored first frame has a zero delta.
 
-- [ ] **Step 4: Run focused tests and typecheck**
+- [x] **Step 4: Run focused tests and typecheck**
 
 Run: `bun run test -- tests/app.test.ts && bun run typecheck`
 
@@ -122,7 +122,7 @@ Expected: all `app.test.ts` tests pass and TypeScript exits zero.
 - Consumes: `isPersistedPageTransition(event)`, bootstrap resource disposal helpers, asset loader promise.
 - Produces: a deferred bootstrap-resume barrier and exact bootstrap-to-ready transition-listener handoff.
 
-- [ ] **Step 1: Write failing pending-bootstrap tests**
+- [x] **Step 1: Write failing pending-bootstrap tests**
 
 ```ts
 it('preserves pending bootstrap across BFCache and starts after pageshow', async () => {
@@ -186,13 +186,13 @@ it('suppresses a pending asset rejection after final pagehide', async () => {
 
 Instrument `window.addEventListener`/`removeEventListener` in the final-teardown test to assert the bootstrap `pagehide` and `pageshow` listeners are removed synchronously, then assert late resolution disposes the catalog once. Add a repeated persisted hide/show test and verify bootstrap listeners have handed off before the ready listeners own subsequent events.
 
-- [ ] **Step 2: Run the focused tests and verify the red state**
+- [x] **Step 2: Run the focused tests and verify the red state**
 
 Run: `bun run test -- tests/app.test.ts`
 
 Expected: FAIL because pending persisted `pagehide` currently performs final disposal, loading settlement is not deferred, and late rejection still reports to the disposed overlay.
 
-- [ ] **Step 3: Implement the bootstrap suspension barrier**
+- [x] **Step 3: Implement the bootstrap suspension barrier**
 
 ```ts
 let bootstrapBfcacheSuspended = false
@@ -219,7 +219,7 @@ const resumeBootstrap = (): void => {
 
 Use persisted `pagehide` only to set the suspension flag. Use persisted `pageshow` to call `resumeBootstrap()`. For non-persisted `pagehide`, set `bootstrapDisposed`, immediately remove both transition listeners, release the barrier, remove recovery listeners, dispose resources, and dispose the overlay.
 
-- [ ] **Step 4: Defer both successful and failed asset settlement and suppress final errors**
+- [x] **Step 4: Defer both successful and failed asset settlement and suppress final errors**
 
 ```ts
 const loadCatalog = dependencies.loadAssetCatalog ?? loadAssets
@@ -244,7 +244,7 @@ Before ready-loop construction, remove both bootstrap transition listeners. In t
 if (!bootstrapDisposed && !recoveryIsTerminal()) reportError(error)
 ```
 
-- [ ] **Step 5: Run focused tests and typecheck**
+- [x] **Step 5: Run focused tests and typecheck**
 
 Run: `bun run test -- tests/app.test.ts && bun run typecheck`
 
@@ -261,7 +261,7 @@ Expected: all focused tests pass, including ready context-loss tests, and TypeSc
 - Consumes: repository source, tests, documentation, and commit history as completion evidence.
 - Produces: accurate checkbox state for the original plan.
 
-- [ ] **Step 1: Inventory all unchecked task steps**
+- [x] **Step 1: Inventory all unchecked task steps**
 
 Run:
 
@@ -273,15 +273,15 @@ $steps | Select-Object LineNumber, Line
 
 Expected: 55 actual unchecked task-step lines. The apparent 56th textual `[ ]` occurrence is the header's checkbox-syntax example and must not be edited.
 
-- [ ] **Step 2: Audit each Task 1-10 deliverable before checking it**
+- [x] **Step 2: Audit each Task 1-10 deliverable before checking it**
 
 Use `rg --files src tests docs` and the complete automated suite to confirm the implemented layout, world window, traffic geometry/safety/reservations/pool, quality/assets, rendering, app loop, overlay, responsive styles, historical red/green verification, and commits. Leave any unmet step unchecked and report it instead of inferring completion.
 
-- [ ] **Step 3: Mark only verified task steps complete**
+- [x] **Step 3: Mark only verified task steps complete**
 
 Replace `- [ ]` with `- [x]` only on verified Task 1-10 step headings. Re-run the inventory command and expect zero actual unchecked task-step lines if all 55 are evidenced.
 
-- [ ] **Step 4: Check documentation diff hygiene**
+- [x] **Step 4: Check documentation diff hygiene**
 
 Run: `git diff --check && git diff -- docs/superpowers/plans/2026-07-13-endless-city-redesign.md`
 
@@ -299,7 +299,7 @@ Expected: no whitespace errors; only checkbox markers change.
 - Consumes: completed implementation and documentation audit.
 - Produces: final reproducible evidence and one focused implementation commit.
 
-- [ ] **Step 1: Run the full automated gate**
+- [x] **Step 1: Run the full automated gate**
 
 Run:
 
@@ -312,24 +312,24 @@ git diff --check
 
 Expected: typecheck exits zero; every test file/test passes; production build succeeds with only the established chunk-size advisory; diff check is clean.
 
-- [ ] **Step 2: Run production smoke**
+- [x] **Step 2: Run production smoke**
 
 Start the built application using the existing local production-preview workflow. In the browser verify the loading overlay reaches Ready, rendering is visible, the FPS display remains hidden outside debug mode, and the console contains no application errors or warnings. If the browser permits synthetic public page-transition events, verify persisted hide/show does not destroy rendering; otherwise record that BFCache lifecycle semantics are covered by jsdom integration tests.
 
-- [ ] **Step 3: Review the final diff and update the ignored evidence report**
+- [x] **Step 3: Review the final diff and update the ignored evidence report**
 
 Run: `git status --short && git diff --stat && git diff`
 
 Record the focused/full gate counts, smoke observations, checkbox audit count, and final commit hash in `.superpowers/sdd/task-11-report.md`. Preserve ignored build output and existing assets.
 
-- [ ] **Step 4: Commit the focused implementation**
+- [x] **Step 4: Commit the focused implementation**
 
 ```powershell
 git add -- src/app.ts tests/app.test.ts docs/superpowers/plans/2026-07-13-endless-city-redesign.md
 git commit -m "fix: preserve app state across bfcache"
 ```
 
-- [ ] **Step 5: Re-run final repository checks**
+- [x] **Step 5: Re-run final repository checks**
 
 Run: `git status --short && git log -2 --oneline`
 
