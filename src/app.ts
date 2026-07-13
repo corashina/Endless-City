@@ -69,6 +69,7 @@ export interface OwnedLoopInput {
   readonly runFrame: (timestamp: number) => void
   readonly disposeScene: () => void
   readonly disposeApplication?: () => void
+  readonly onPageFreeze?: () => void
   readonly onError: (error: unknown) => void
 }
 
@@ -89,15 +90,43 @@ export function completeOverlayBootstrap(
   if (!contextLost) overlay?.showReady()
 }
 
+const isPersistedPageTransition = (event: Event): boolean =>
+  'persisted' in event && event.persisted === true
+
 export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
   let stopped = false
   let applicationDisposed = false
   let paused = false
+  let bfcacheSuspended = false
+  let resumeAfterBfcache = false
+  let resumeRequestedDuringBfcache = false
   let frameHandle: number | undefined
 
   const resizeListener: EventListener = () => input.onResize()
   const visibilityListener: EventListener = () => input.onVisibilityChange()
-  const pageHideListener: EventListener = () => handle.dispose()
+  const pageHideListener: EventListener = (event) => {
+    if (!isPersistedPageTransition(event)) {
+      handle.dispose()
+      return
+    }
+    if (stopped || bfcacheSuspended) return
+    resumeAfterBfcache = !paused
+    bfcacheSuspended = true
+    if (frameHandle !== undefined) {
+      input.cancelAnimationFrame(frameHandle)
+      frameHandle = undefined
+    }
+    input.onPageFreeze?.()
+  }
+  const pageShowListener: EventListener = (event) => {
+    if (!isPersistedPageTransition(event) || stopped || !bfcacheSuspended) return
+    const shouldResume =
+      (resumeAfterBfcache || resumeRequestedDuringBfcache) && !paused
+    bfcacheSuspended = false
+    resumeAfterBfcache = false
+    resumeRequestedDuringBfcache = false
+    if (shouldResume) frameHandle = input.requestAnimationFrame(frame)
+  }
 
   const stop = (): void => {
     if (stopped) return
@@ -124,11 +153,16 @@ export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
     resume() {
       if (stopped || !paused) return
       paused = false
+      if (bfcacheSuspended) {
+        resumeRequestedDuringBfcache = true
+        return
+      }
       frameHandle = input.requestAnimationFrame(frame)
     },
     dispose() {
       stop()
       input.windowTarget.removeEventListener('pagehide', pageHideListener)
+      input.windowTarget.removeEventListener('pageshow', pageShowListener)
       if (applicationDisposed) return
       applicationDisposed = true
       input.disposeApplication?.()
@@ -154,10 +188,12 @@ export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
     input.windowTarget.addEventListener('resize', resizeListener)
     input.documentTarget.addEventListener('visibilitychange', visibilityListener)
     input.windowTarget.addEventListener('pagehide', pageHideListener)
+    input.windowTarget.addEventListener('pageshow', pageShowListener)
     frameHandle = input.requestAnimationFrame(frame)
   } catch (error) {
     stop()
     input.windowTarget.removeEventListener('pagehide', pageHideListener)
+    input.windowTarget.removeEventListener('pageshow', pageShowListener)
     throw error
   }
 
@@ -220,7 +256,16 @@ export async function startApp(
   let recoveryTimer: number | undefined
   let bootstrapReady = false
   let lastLoadingProgress = { loaded: 0, total: 17 }
+  let bootstrapBfcacheSuspended = false
+  let bootstrapProgressDeferred = false
   const recoveryIsTerminal = (): boolean => recoveryState === 'terminal'
+  const renderLoadingProgress = (): void => {
+    elements.overlay?.showLoading(lastLoadingProgress.loaded, lastLoadingProgress.total)
+    if (elements.loadingProgress !== null && elements.loadingProgress !== undefined) {
+      elements.loadingProgress.textContent =
+        `${lastLoadingProgress.loaded} / ${lastLoadingProgress.total}`
+    }
+  }
 
   const clearRecoveryTimer = (): void => {
     if (recoveryTimer === undefined) return
@@ -261,7 +306,11 @@ export async function startApp(
     clearRecoveryTimer()
     recoveryState = 'healthy'
     if (bootstrapReady) elements.overlay?.showReady()
-    else elements.overlay?.showLoading(lastLoadingProgress.loaded, lastLoadingProgress.total)
+    else if (bootstrapBfcacheSuspended) bootstrapProgressDeferred = true
+    else {
+      bootstrapProgressDeferred = false
+      renderLoadingProgress()
+    }
     handle?.resume()
   }
 
@@ -273,27 +322,68 @@ export async function startApp(
     resume() {},
     dispose() {},
   }
-  const bootstrapPageHideListener: EventListener = () => {
+  let bootstrapResumePromise: Promise<void> | undefined
+  let releaseBootstrapResume: (() => void) | undefined
+  const waitForBootstrapResume = async (): Promise<void> => {
+    if (!bootstrapBfcacheSuspended) return
+    bootstrapResumePromise ??= new Promise<void>((resolve) => {
+      releaseBootstrapResume = resolve
+    })
+    await bootstrapResumePromise
+  }
+  const resumeBootstrap = (): void => {
+    if (!bootstrapBfcacheSuspended) return
+    bootstrapBfcacheSuspended = false
+    const release = releaseBootstrapResume
+    bootstrapResumePromise = undefined
+    releaseBootstrapResume = undefined
+    if (bootstrapProgressDeferred && !bootstrapDisposed && recoveryState === 'healthy') {
+      bootstrapProgressDeferred = false
+      renderLoadingProgress()
+    }
+    release?.()
+  }
+  const removeBootstrapPageTransitionListeners = (): void => {
+    window.removeEventListener('pagehide', bootstrapPageHideListener)
+    window.removeEventListener('pageshow', bootstrapPageShowListener)
+  }
+  const bootstrapPageHideListener: EventListener = (event) => {
+    if (isPersistedPageTransition(event)) {
+      if (!bootstrapDisposed) bootstrapBfcacheSuspended = true
+      return
+    }
     if (bootstrapDisposed) return
     bootstrapDisposed = true
+    removeBootstrapPageTransitionListeners()
+    resumeBootstrap()
     removeRecoveryListeners()
     disposeResources()
     elements.overlay?.dispose()
   }
-  const removeBootstrapPageHideListener = (): void => {
-    window.removeEventListener('pagehide', bootstrapPageHideListener)
+  const bootstrapPageShowListener: EventListener = (event) => {
+    if (bootstrapDisposed || !isPersistedPageTransition(event)) return
+    resumeBootstrap()
   }
   window.addEventListener('pagehide', bootstrapPageHideListener)
+  window.addEventListener('pageshow', bootstrapPageShowListener)
 
   try {
-    const loadedAssets = await (dependencies.loadAssetCatalog ?? loadAssets)(({ loaded, total }) => {
-      if (bootstrapDisposed || recoveryState === 'terminal') return
-      lastLoadingProgress = { loaded, total }
-      elements.overlay?.showLoading(loaded, total)
-      if (elements.loadingProgress !== null && elements.loadingProgress !== undefined) {
-        elements.loadingProgress.textContent = `${loaded} / ${total}`
-      }
-    })
+    let loadedAssets: AssetCatalog
+    try {
+      loadedAssets = await (dependencies.loadAssetCatalog ?? loadAssets)(({ loaded, total }) => {
+        if (bootstrapDisposed || recoveryState === 'terminal') return
+        lastLoadingProgress = { loaded, total }
+        if (bootstrapBfcacheSuspended) {
+          bootstrapProgressDeferred = true
+          return
+        }
+        renderLoadingProgress()
+      })
+    } catch (error) {
+      await waitForBootstrapResume()
+      throw error
+    }
+    await waitForBootstrapResume()
     assets = loadedAssets
     if (bootstrapDisposed) {
       disposeResources()
@@ -409,7 +499,7 @@ export async function startApp(
       elements.overlay?.updateFps(timestamp)
     }
 
-    removeBootstrapPageHideListener()
+    removeBootstrapPageTransitionListeners()
     handle = startOwnedLoop({
       windowTarget: window,
       documentTarget: document,
@@ -417,6 +507,9 @@ export async function startApp(
       cancelAnimationFrame: (frameId) => window.cancelAnimationFrame(frameId),
       onResize: resize,
       onVisibilityChange: visibilityChange,
+      onPageFreeze: () => {
+        previousTimestamp = undefined
+      },
       runFrame: frame,
       disposeScene: () => {
         cameraController.dispose()
@@ -436,12 +529,12 @@ export async function startApp(
 
     return handle
   } catch (error) {
-    removeBootstrapPageHideListener()
+    removeBootstrapPageTransitionListeners()
     removeRecoveryListeners()
     if (handle === undefined) disposeResources()
     else handle.dispose()
     removeAcceptanceHook()
-    if (!recoveryIsTerminal()) reportError(error)
+    if (!bootstrapDisposed && !recoveryIsTerminal()) reportError(error)
     throw error
   }
 }

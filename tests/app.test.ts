@@ -79,6 +79,12 @@ function createRunnableScene() {
   }
 }
 
+function pageTransition(type: 'pagehide' | 'pageshow', persisted: boolean): Event {
+  const event = new Event(type)
+  Object.defineProperty(event, 'persisted', { value: persisted })
+  return event
+}
+
 function createLoopHarness(runFrame: (timestamp: number) => void = () => undefined) {
   const windowTarget = new EventTarget()
   const documentTarget = new EventTarget()
@@ -92,6 +98,7 @@ function createLoopHarness(runFrame: (timestamp: number) => void = () => undefin
   const onVisibilityChange = vi.fn()
   const disposeScene = vi.fn()
   const disposeApplication = vi.fn()
+  const onPageFreeze = vi.fn()
   const onError = vi.fn()
   const handle = startOwnedLoop({
     windowTarget,
@@ -103,6 +110,7 @@ function createLoopHarness(runFrame: (timestamp: number) => void = () => undefin
     runFrame,
     disposeScene,
     disposeApplication,
+    onPageFreeze,
     onError,
   })
 
@@ -115,6 +123,7 @@ function createLoopHarness(runFrame: (timestamp: number) => void = () => undefin
     onVisibilityChange,
     disposeScene,
     disposeApplication,
+    onPageFreeze,
     onError,
     handle,
     invokeFrame(timestamp = 0) {
@@ -152,10 +161,57 @@ describe('owned application lifecycle', () => {
   it('uses the same disposal path on page teardown', () => {
     const harness = createLoopHarness()
 
-    harness.windowTarget.dispatchEvent(new Event('pagehide'))
+    harness.windowTarget.dispatchEvent(pageTransition('pagehide', false))
 
     expect(harness.cancelAnimationFrame).toHaveBeenCalledWith(17)
     expect(harness.disposeScene).toHaveBeenCalledOnce()
+  })
+
+  it('pauses for persisted pagehide and resumes exactly once on persisted pageshow', () => {
+    const harness = createLoopHarness()
+
+    harness.windowTarget.dispatchEvent(pageTransition('pagehide', true))
+    harness.windowTarget.dispatchEvent(pageTransition('pagehide', true))
+
+    expect(harness.cancelAnimationFrame).toHaveBeenCalledOnce()
+    expect(harness.cancelAnimationFrame).toHaveBeenCalledWith(17)
+    expect(harness.onPageFreeze).toHaveBeenCalledOnce()
+    expect(harness.disposeScene).not.toHaveBeenCalled()
+    expect(harness.disposeApplication).not.toHaveBeenCalled()
+
+    harness.windowTarget.dispatchEvent(pageTransition('pageshow', true))
+    harness.windowTarget.dispatchEvent(pageTransition('pageshow', true))
+
+    expect(harness.requestAnimationFrame).toHaveBeenCalledTimes(2)
+    expect(harness.disposeScene).not.toHaveBeenCalled()
+    harness.handle.dispose()
+  })
+
+  it('does not resume a loop that was paused before persisted pagehide', () => {
+    const harness = createLoopHarness()
+
+    harness.handle.pause()
+    harness.windowTarget.dispatchEvent(pageTransition('pagehide', true))
+    harness.windowTarget.dispatchEvent(pageTransition('pageshow', true))
+
+    expect(harness.requestAnimationFrame).toHaveBeenCalledOnce()
+    expect(harness.onPageFreeze).toHaveBeenCalledOnce()
+    expect(harness.disposeScene).not.toHaveBeenCalled()
+    harness.handle.dispose()
+  })
+
+  it('removes both page transition listeners when disposed', () => {
+    const harness = createLoopHarness()
+
+    harness.handle.dispose()
+    harness.windowTarget.dispatchEvent(pageTransition('pagehide', true))
+    harness.windowTarget.dispatchEvent(pageTransition('pageshow', true))
+
+    expect(harness.requestAnimationFrame).toHaveBeenCalledOnce()
+    expect(harness.cancelAnimationFrame).toHaveBeenCalledOnce()
+    expect(harness.onPageFreeze).not.toHaveBeenCalled()
+    expect(harness.disposeScene).toHaveBeenCalledOnce()
+    expect(harness.disposeApplication).toHaveBeenCalledOnce()
   })
 
   it('stops once and reports one error when a frame fails', () => {
@@ -340,6 +396,8 @@ describe('startApp setup cleanup', () => {
       .mockImplementation(() => 79)
     const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
       .mockImplementation(() => undefined)
+    const addEventListener = vi.spyOn(window, 'addEventListener')
+    const removeEventListener = vi.spyOn(window, 'removeEventListener')
     const appPromise = startApp({
       canvas,
       overlay: overlay as unknown as OverlayController,
@@ -347,9 +405,19 @@ describe('startApp setup cleanup', () => {
       createScene: () => scene.context,
       loadAssetCatalog: () => new Promise((resolve) => { resolveAssets = resolve }),
     })
+    const bootstrapPageHideListener = addEventListener.mock.calls
+      .find(([type]) => type === 'pagehide')?.[1]
+    const bootstrapPageShowListener = addEventListener.mock.calls
+      .find(([type]) => type === 'pageshow')?.[1]
 
-    window.dispatchEvent(new Event('pagehide'))
+    window.dispatchEvent(pageTransition('pagehide', true))
+    window.dispatchEvent(pageTransition('pagehide', false))
+    expect(removeEventListener).toHaveBeenCalledWith('pagehide', bootstrapPageHideListener)
+    expect(removeEventListener).toHaveBeenCalledWith('pageshow', bootstrapPageShowListener)
     resolveAssets(catalog)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(catalog.dispose).toHaveBeenCalledOnce()
     const handle = await appPromise
     try {
       expect(scene.dispose).toHaveBeenCalledOnce()
@@ -360,7 +428,157 @@ describe('startApp setup cleanup', () => {
       handle.dispose()
       requestAnimationFrame.mockRestore()
       cancelAnimationFrame.mockRestore()
+      addEventListener.mockRestore()
+      removeEventListener.mockRestore()
     }
+  })
+
+  it('preserves pending bootstrap across BFCache and starts after pageshow', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const catalog = createRunnableCatalog()
+    let resolveAssets: (catalog: AssetCatalog) => void = () => undefined
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 93)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const appPromise = startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: () => new Promise((resolve) => { resolveAssets = resolve }),
+    })
+    let settled = false
+    void appPromise.then(() => { settled = true })
+
+    window.dispatchEvent(pageTransition('pagehide', true))
+    window.dispatchEvent(pageTransition('pagehide', true))
+    resolveAssets(catalog)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(settled).toBe(false)
+    expect(requestAnimationFrame).not.toHaveBeenCalled()
+    expect(scene.dispose).not.toHaveBeenCalled()
+    expect(catalog.dispose).not.toHaveBeenCalled()
+    expect(overlay.dispose).not.toHaveBeenCalled()
+
+    window.dispatchEvent(pageTransition('pageshow', true))
+    window.dispatchEvent(pageTransition('pageshow', true))
+    const handle = await appPromise
+
+    expect(requestAnimationFrame).toHaveBeenCalledOnce()
+    expect(overlay.showReady).toHaveBeenCalledOnce()
+    handle.dispose()
+    expect(scene.dispose).toHaveBeenCalledOnce()
+    expect(catalog.dispose).toHaveBeenCalledOnce()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
+  })
+
+  it('defers a pending asset rejection until BFCache restoration', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const loadError = new Error('load failed while suspended')
+    let rejectAssets: (error: Error) => void = () => undefined
+    const appPromise = startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: () => new Promise((_, reject) => { rejectAssets = reject }),
+    })
+    let rejected = false
+    void appPromise.catch(() => { rejected = true })
+
+    window.dispatchEvent(pageTransition('pagehide', true))
+    rejectAssets(loadError)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(rejected).toBe(false)
+    expect(overlay.showError).not.toHaveBeenCalled()
+    expect(scene.dispose).not.toHaveBeenCalled()
+    expect(overlay.dispose).not.toHaveBeenCalled()
+
+    window.dispatchEvent(pageTransition('pageshow', true))
+    await expect(appPromise).rejects.toBe(loadError)
+    expect(overlay.showError).toHaveBeenCalledOnce()
+    expect(overlay.showError).toHaveBeenCalledWith(loadError)
+    expect(scene.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('suppresses a pending asset rejection after final pagehide', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const onError = vi.fn()
+    const loadError = new Error('late load failure')
+    let rejectAssets: (error: Error) => void = () => undefined
+    const appPromise = startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+      onError,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: () => new Promise((_, reject) => { rejectAssets = reject }),
+    })
+
+    window.dispatchEvent(pageTransition('pagehide', false))
+    window.dispatchEvent(pageTransition('pagehide', false))
+    rejectAssets(loadError)
+
+    await expect(appPromise).rejects.toBe(loadError)
+    expect(overlay.showError).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
+    expect(scene.dispose).toHaveBeenCalledOnce()
+    expect(overlay.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('defers loading progress UI until pending bootstrap returns from BFCache', async () => {
+    const canvas = document.createElement('canvas')
+    const loadingProgress = document.createElement('span')
+    loadingProgress.textContent = '0 / 17'
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    let reportProgress: Parameters<StartAppDependencies['loadAssetCatalog']>[0] = () => undefined
+    let resolveAssets: (catalog: AssetCatalog) => void = () => undefined
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 94)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const appPromise = startApp({
+      canvas,
+      loadingProgress,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: (onProgress) => {
+        reportProgress = onProgress
+        return new Promise((resolve) => { resolveAssets = resolve })
+      },
+    })
+    overlay.showLoading.mockClear()
+
+    window.dispatchEvent(pageTransition('pagehide', true))
+    reportProgress?.({ loaded: 8, total: 17, url: '/suspended.glb' })
+
+    expect(overlay.showLoading).not.toHaveBeenCalled()
+    expect(loadingProgress.textContent).toBe('0 / 17')
+
+    window.dispatchEvent(pageTransition('pageshow', true))
+    expect(overlay.showLoading).toHaveBeenCalledOnce()
+    expect(overlay.showLoading).toHaveBeenCalledWith(8, 17)
+    expect(loadingProgress.textContent).toBe('8 / 17')
+
+    resolveAssets(createRunnableCatalog())
+    const handle = await appPromise
+    handle.dispose()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
   })
 
   it('removes the acceptance hook when owned-loop setup throws', async () => {
@@ -507,6 +725,103 @@ describe('startApp setup cleanup', () => {
       cancelAnimationFrame.mockRestore()
     } finally {
       vi.useRealTimers()
+    }
+  })
+
+  it('does not let pageshow override a context loss that began while BFCache-suspended', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 95)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const handle = await startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+    })
+
+    try {
+      window.dispatchEvent(pageTransition('pagehide', true))
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      window.dispatchEvent(pageTransition('pageshow', true))
+
+      expect(requestAnimationFrame).toHaveBeenCalledOnce()
+      expect(overlay.showContextLost).toHaveBeenCalledOnce()
+
+      canvas.dispatchEvent(new Event('webglcontextrestored'))
+      expect(requestAnimationFrame).toHaveBeenCalledTimes(2)
+    } finally {
+      handle.dispose()
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
+    }
+  })
+
+  it('does not schedule recovery frames before BFCache pageshow', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 96)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const handle = await startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+    })
+
+    try {
+      window.dispatchEvent(pageTransition('pagehide', true))
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      canvas.dispatchEvent(new Event('webglcontextrestored'))
+
+      expect(requestAnimationFrame).toHaveBeenCalledOnce()
+
+      window.dispatchEvent(pageTransition('pageshow', true))
+      expect(requestAnimationFrame).toHaveBeenCalledTimes(2)
+    } finally {
+      handle.dispose()
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
+    }
+  })
+
+  it('honors context restoration requested during BFCache after a pre-existing loss', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 97)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const handle = await startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+    })
+
+    try {
+      canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+      window.dispatchEvent(pageTransition('pagehide', true))
+      canvas.dispatchEvent(new Event('webglcontextrestored'))
+
+      expect(requestAnimationFrame).toHaveBeenCalledOnce()
+
+      window.dispatchEvent(pageTransition('pageshow', true))
+      expect(requestAnimationFrame).toHaveBeenCalledTimes(2)
+    } finally {
+      handle.dispose()
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
     }
   })
 

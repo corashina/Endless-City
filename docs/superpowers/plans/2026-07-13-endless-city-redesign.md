@@ -65,7 +65,7 @@
 - Produces: `GridCoordinate`, `BuildingId`, `TileChoice`, `hashCoordinates(seed, x, z, salt)`, and `chooseTile(coordinate, seed)`.
 - Consumes: existing building filenames in `js/clusters/`.
 
-- [ ] **Step 1: Install the modern runtime and test dependencies**
+- [x] **Step 1: Install the modern runtime and test dependencies**
 
 Run:
 
@@ -77,7 +77,7 @@ bun add -d @types/three @types/node jsdom typescript vite vitest
 
 Expected: `package.json` and `bun.lock` exist and `bun pm ls` lists `three`, `jsdom`, `typescript`, `vite`, and `vitest`.
 
-- [ ] **Step 2: Configure strict scripts and TypeScript**
+- [x] **Step 2: Configure strict scripts and TypeScript**
 
 Set these scripts in `package.json`:
 
@@ -118,7 +118,7 @@ Create `tsconfig.json`:
 }
 ```
 
-- [ ] **Step 3: Write failing deterministic-layout tests**
+- [x] **Step 3: Write failing deterministic-layout tests**
 
 Create `tests/layout.test.ts`:
 
@@ -168,13 +168,13 @@ describe('chooseTile', () => {
 })
 ```
 
-- [ ] **Step 4: Run the test and confirm the red state**
+- [x] **Step 4: Run the test and confirm the red state**
 
 Run: `bun run test -- tests/layout.test.ts`
 
 Expected: FAIL because `src/city/layout.ts` does not exist.
 
-- [ ] **Step 5: Implement constants, types, hashing, and weighted selection**
+- [x] **Step 5: Implement constants, types, hashing, and weighted selection**
 
 Create `src/config.ts`:
 
@@ -214,7 +214,7 @@ export function hashCoordinates(seed: number, x: number, z: number, salt = 0): n
 
 Create `src/city/layout.ts` with a typed 15-entry catalog. Use weights `apartments: 8`, `bus: 2`, `coffeeshop: 5`, `factory: 3`, `fastfood: 5`, `gas: 3`, `house: 9`, `house2: 9`, `house3: 9`, `park: 8`, `residence: 8`, `shoparea: 5`, `shops: 6`, `stadium: 1`, and `supermarket: 4`. Select from the cumulative weight using `hashCoordinates(seed, x, z)`, and select rotation with salt `0x51f15e` modulo four. If the raw choice matches both the west and north raw choices, select once more with salt `0x1a2b3c4d` to reduce four-way repetition without generation-order state.
 
-- [ ] **Step 6: Verify and commit the layout core**
+- [x] **Step 6: Verify and commit the layout core**
 
 Run:
 
@@ -241,7 +241,7 @@ Expected: typecheck passes, three layout tests pass, and the commit contains no 
 - Consumes: `GridCoordinate`, `WorldPoint`, `BLOCK_SIZE`, and `coordinateKey`.
 - Produces: `desiredTileWindow(center, diameter)`, `diffTileWindow(current, desired)`, `logicalToRender(point, origin)`, and `recenterFrame(frame)`.
 
-- [ ] **Step 1: Write failing tile-window and origin tests**
+- [x] **Step 1: Write failing tile-window and origin tests**
 
 Create tests that assert:
 
@@ -253,17 +253,17 @@ expect(() => desiredTileWindow({ x: 0, z: 0 }, 8)).toThrow('diameter must be a p
 
 For a frame with local camera `(131, -121)`, local target `(120, -110)`, and origin `(600, -300)`, assert that `recenterFrame` returns local camera `(11, -1)`, local target `(0, 10)`, origin `(720, -420)`, and identical logical camera coordinates before and after the shift.
 
-- [ ] **Step 2: Confirm both test files fail**
+- [x] **Step 2: Confirm both test files fail**
 
 Run: `bun run test -- tests/tile-window.test.ts tests/origin.test.ts`
 
 Expected: FAIL because both modules are missing.
 
-- [ ] **Step 3: Implement window enumeration and pool diffs**
+- [x] **Step 3: Implement window enumeration and pool diffs**
 
 `desiredTileWindow` must enumerate from `-radius` through `+radius` on both axes. `diffTileWindow` accepts a `ReadonlyMap<string, GridCoordinate>` and desired coordinates, then returns `{ retainedKeys: string[]; releasedKeys: string[]; requested: GridCoordinate[] }` with each array sorted by coordinate key for deterministic tests.
 
-- [ ] **Step 4: Implement recentering in exact block multiples**
+- [x] **Step 4: Implement recentering in exact block multiples**
 
 Create `src/city/origin.ts` with:
 
@@ -287,7 +287,7 @@ export const logicalCamera = (frame: RenderFrame): WorldPoint => ({
 
 Use a 120-unit threshold. On each axis beyond it, shift by `Math.round(local / BLOCK_SIZE) * BLOCK_SIZE`; subtract the shift from camera and target and add it to origin. Do not alter an axis inside the threshold.
 
-- [ ] **Step 5: Verify repeated travel stays bounded and commit**
+- [x] **Step 5: Verify repeated travel stays bounded and commit**
 
 Add a loop test applying 2,000 camera movements and asserting `Math.abs(localCamera.x) <= 120`, logical movement is preserved, and an unchanged 9 by 9 window still contains 81 entries.
 
@@ -312,7 +312,7 @@ git commit -m "feat: add bounded tile windows and render origins"
 - Produces: `Direction`, `Lane`, `VehicleState`, `VehiclePrototypeMetadata`, `TrafficConfig`, `laneKey`, `positionOnLane`, `nextIntersection`, and `intersectionKey`.
 - Consumes: `WorldPoint` and `BLOCK_SIZE`.
 
-- [ ] **Step 1: Write failing lane geometry tests**
+- [x] **Step 1: Write failing lane geometry tests**
 
 Cover all four directions:
 
@@ -326,13 +326,13 @@ expect(nextIntersection({ direction: 'east', line: 2 }, 15).key).toBe('1:2')
 
 The last expectation uses crossing centers at `index * 60 - 20`, so the first eastbound crossing after progress 15 is x=40.
 
-- [ ] **Step 2: Confirm the lane tests fail**
+- [x] **Step 2: Confirm the lane tests fail**
 
 Run: `bun run test -- tests/lanes.test.ts`
 
 Expected: FAIL because `src/traffic/lanes.ts` is missing.
 
-- [ ] **Step 3: Define exact traffic data types**
+- [x] **Step 3: Define exact traffic data types**
 
 In `src/traffic/types.ts`, define:
 
@@ -364,11 +364,11 @@ export interface TrafficConfig {
 }
 ```
 
-- [ ] **Step 4: Implement lane positions and next crossings**
+- [x] **Step 4: Implement lane positions and next crossings**
 
 Use these authored offsets: east and south `-16`; west and north `-23`. Treat `progress` as always increasing: east maps to `x=progress`, west to `x=-progress`, north to `z=progress`, and south to `z=-progress`. Road crossing centers occur at `index * BLOCK_SIZE - 20` on both axes.
 
-- [ ] **Step 5: Verify and commit lane geometry**
+- [x] **Step 5: Verify and commit lane geometry**
 
 Run `bun run typecheck` and `bun run test -- tests/lanes.test.ts`, then commit the three task files as `feat: model endless road lanes`.
 
@@ -384,21 +384,21 @@ Run `bun run typecheck` and `bun run test -- tests/lanes.test.ts`, then commit t
 - Consumes: `VehicleState`, `TrafficConfig`, and `laneKey`.
 - Produces: `stepFollowing(vehicles, deltaSeconds, config, stopProgressByVehicle?)`.
 
-- [ ] **Step 1: Write failing safety tests**
+- [x] **Step 1: Write failing safety tests**
 
 Create one eastbound leader at progress 20 with length 4 and a follower at progress 12 with length 4. Assert that ten one-second steps never place the follower's front bumper beyond the leader's rear bumper. Add tests that a clear vehicle accelerates without exceeding desired speed and that identical simulations split into 60 or 120 render frames end at the same progress when both use 60 Hz traffic steps.
 
-- [ ] **Step 2: Confirm failure**
+- [x] **Step 2: Confirm failure**
 
 Run: `bun run test -- tests/following.test.ts`
 
 Expected: FAIL because `stepFollowing` is missing.
 
-- [ ] **Step 3: Implement grouped following**
+- [x] **Step 3: Implement grouped following**
 
 For each active lane group, sort by ascending progress. Calculate bumper gap as `leader.progress - follower.progress - (leader.length + follower.length) / 2`. Desired gap is `minimumGap + follower.speed * timeHeadway`. Accelerate by at most `maximumAcceleration * dt`; brake by at most `comfortableBraking * dt`. Clamp the proposed progress so the bumper gap cannot become negative. An optional stop progress participates as a zero-speed virtual leader.
 
-- [ ] **Step 4: Add the fixed-step accumulator helper**
+- [x] **Step 4: Add the fixed-step accumulator helper**
 
 In the same module export:
 
@@ -415,7 +415,7 @@ export function consumeFixedSteps(
 
 Clamp frame time, call `step` while the accumulator contains a complete fixed step, and return the remaining fraction as `alpha`.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run all tests and commit `src/traffic/following.ts` plus its test as `feat: add frame-independent vehicle following`.
 
@@ -431,25 +431,25 @@ Run all tests and commit `src/traffic/following.ts` plus its test as `feat: add 
 - Consumes: vehicle positions derived by `positionOnLane`, `nextIntersection`, and `TrafficConfig`.
 - Produces: `IntersectionReservations`, `updateIntersectionReservations(vehicles, reservations, config)`, and `intersectionStops`.
 
-- [ ] **Step 1: Write failing perpendicular-conflict tests**
+- [x] **Step 1: Write failing perpendicular-conflict tests**
 
 Create an eastbound and northbound vehicle approaching the same crossing in the same update. Assert that the lower stable vehicle id receives the reservation, the other receives a stop progress before the conflict zone, and only one vehicle can occupy the zone. Add a test that the reservation is released after the holder's rear bumper leaves the zone.
 
-- [ ] **Step 2: Confirm failure**
+- [x] **Step 2: Confirm failure**
 
 Run: `bun run test -- tests/intersections.test.ts`
 
 Expected: FAIL because the reservation module is absent.
 
-- [ ] **Step 3: Implement request ordering and lifecycle**
+- [x] **Step 3: Implement request ordering and lifecycle**
 
 Represent reservations as `Map<string, number>` from intersection key to vehicle id. Collect requests only within `reservationLookAhead`. Sort requests by distance to the stop line, then stable vehicle id. Preserve a valid existing reservation until the holder's rear bumper exits `intersectionHalfExtent`. Produce a `Map<number, number>` of virtual stop progress for rejected requests.
 
-- [ ] **Step 4: Integrate reservations with following in the test**
+- [x] **Step 4: Integrate reservations with following in the test**
 
 Run reservations first, pass returned virtual stops to `stepFollowing`, and simulate 600 fixed steps. Assert at every step that perpendicular vehicles are not simultaneously inside the same conflict zone.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run all tests and commit as `feat: prevent traffic conflicts at intersections`.
 
@@ -467,29 +467,29 @@ Run all tests and commit as `feat: prevent traffic conflicts at intersections`.
 - Consumes: lane geometry, prototype metadata, following, reservations, camera `WorldPoint`, and seed.
 - Produces: `createTrafficPool(input)`, `recycleTraffic(input)`, `TrafficSimulation`, `TrafficSimulation.step(dt, camera)`, and `TrafficSimulation.vehicles`.
 
-- [ ] **Step 1: Write failing pool and recycling tests**
+- [x] **Step 1: Write failing pool and recycling tests**
 
 Assert that counts 49, 32, and 20 are created exactly; each pool includes four directions; all same-lane bumper gaps meet `minimumGap`; and the same seed produces the same state. Place one vehicle inside `protectedRadius` and one outside `simulationRadius`; assert only the outside vehicle is reassigned.
 
-- [ ] **Step 2: Confirm failure**
+- [x] **Step 2: Confirm failure**
 
 Run: `bun run test -- tests/spawning.test.ts tests/simulation.test.ts`
 
 Expected: FAIL because spawning and simulation modules are absent.
 
-- [ ] **Step 3: Implement deterministic pool creation**
+- [x] **Step 3: Implement deterministic pool creation**
 
 Choose directions, nearby lane lines, prototypes matching each direction, desired speeds from 8 through 13 units per second, and progress slots using `hashCoordinates`. Reject occupied candidates until both front and rear minimum gaps pass. Use stable vehicle ids from zero through `count - 1`.
 
-- [ ] **Step 4: Implement protected recycling**
+- [x] **Step 4: Implement protected recycling**
 
 Measure vehicle logical positions against the camera. Do nothing inside `simulationRadius`. Beyond it, search deterministic spawn candidates on the far side of the buffered area. Accept only candidates beyond `protectedRadius` and outside current minimum gaps. If no candidate succeeds after 32 attempts, set `active=false` and retry on a later step.
 
-- [ ] **Step 5: Compose `TrafficSimulation`**
+- [x] **Step 5: Compose `TrafficSimulation`**
 
 Each `step` must copy `progress` to `previousProgress`, update/release intersection reservations, calculate virtual stops, run following, then recycle. Expose reservations read-only for diagnostics. Never store a Three.js object.
 
-- [ ] **Step 6: Run a long deterministic regression and commit**
+- [x] **Step 6: Run a long deterministic regression and commit**
 
 Simulate 36,000 fixed steps while moving the camera across 500 blocks. Assert a constant pool length, finite numeric fields, no following overlap, no shared intersection zone, and no active vehicle beyond `simulationRadius + BLOCK_SIZE * 2`.
 
@@ -509,7 +509,7 @@ Run all tests and commit as `feat: add bounded deterministic traffic simulation`
 - Consumes: `BuildingId`, `Direction`, `VehiclePrototypeMetadata`, and existing cluster files.
 - Produces: `QualityProfile`, `chooseQualityProfile(input)`, `AssetCatalog`, `loadAssetCatalog(onProgress)`, `cloneBuilding(id)`, and `cloneVehicle(id)`.
 
-- [ ] **Step 1: Write quality and disk-contract tests**
+- [x] **Step 1: Write quality and disk-contract tests**
 
 Assert exact profile values:
 
@@ -523,23 +523,23 @@ In `tests/assets.test.ts`, assert every catalog GLB, `road.glb`, and `cars.gltf`
 
 Also test a pure `resolveBuildingFallbacks` helper: a failed non-park entry resolves to the loaded park prototype, a failed park resolves to `null`, and a failed vehicle collection resolves to an empty vehicle list. Test that progress reaches exactly 17 of 17 requests.
 
-- [ ] **Step 2: Confirm the quality module test fails while asset contracts pass**
+- [x] **Step 2: Confirm the quality module test fails while asset contracts pass**
 
 Run: `bun run test -- tests/quality.test.ts tests/assets.test.ts`
 
 Expected: quality test FAILS for a missing module; asset contract test PASSES.
 
-- [ ] **Step 3: Implement stable quality selection**
+- [x] **Step 3: Implement stable quality selection**
 
 Select mobile below 768 CSS pixels, balanced from 768 through 1199 or when device pixel ratio exceeds 2, and high otherwise. Return an immutable profile object and select it once during bootstrap.
 
-- [ ] **Step 4: Implement one-time asset loading**
+- [x] **Step 4: Implement one-time asset loading**
 
 Use `GLTFLoader.loadAsync`. Load `road.glb`, all 15 unique building GLBs, and `cars.gltf` once. Traverse meshes to enable casting/receiving shadows. Extract vehicle roots, validate extras, map vectors to directions, zero each prototype's position while retaining its authored rotation and scale, and calculate length with `THREE.Box3`. Group vehicle prototypes by direction.
 
 Progress must report `{ loaded: number; total: 17; url: string }`. Replace a failed building with a cloneable park prototype; if park fails, store `null` for that building. Return an empty vehicle list when the car collection fails. A failed road is fatal because it has no valid existing-asset substitute.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run typecheck and all tests, then commit as `feat: load and validate existing city assets`.
 
@@ -557,29 +557,29 @@ Run typecheck and all tests, then commit as `feat: load and validate existing ci
 - Consumes: `AssetCatalog`, `QualityProfile`, tile layout/window functions, origin functions, and `MapControls`.
 - Produces: `SceneContext`, `createScene(canvas, profile)`, `CameraController`, and `CityView.update(centerCell, origin)`.
 
-- [ ] **Step 1: Write a pool assignment test without WebGL**
+- [x] **Step 1: Write a pool assignment test without WebGL**
 
 Extract and test `planTileAssignments(currentAssignments, center, diameter)`. Starting empty at diameter 9 must request 81 entries. Moving one block east must retain 72, release 9, request 9, and keep 81 unique coordinate keys after reassignment.
 
-- [ ] **Step 2: Confirm failure**
+- [x] **Step 2: Confirm failure**
 
 Run: `bun run test -- tests/city-view.test.ts`
 
 Expected: FAIL because `planTileAssignments` is missing.
 
-- [ ] **Step 3: Implement the scene context**
+- [x] **Step 3: Implement the scene context**
 
 Create a `WebGLRenderer` with antialiasing and `powerPreference: 'high-performance'`, cap pixel ratio from the selected profile, set `outputColorSpace = THREE.SRGBColorSpace`, enable PCF soft shadows, and use black background with fog from 200 to 300. Use a 40-degree perspective camera with near 1 and far 500 at `(10, 100, 10)`. Configure one directional light and one hemisphere light; size the shadow map from the profile and keep the shadow camera within 180 units of the controls target.
 
-- [ ] **Step 4: Implement camera recentering**
+- [x] **Step 4: Implement camera recentering**
 
 Wrap `MapControls`. On update, call controls, convert camera/target x-z into a `RenderFrame`, apply `recenterFrame`, write shifted local positions back only when the origin changes, and return both logical camera position and origin. Preserve camera height and target height.
 
-- [ ] **Step 5: Implement pooled building views and road placement**
+- [x] **Step 5: Implement pooled building views and road placement**
 
 Add one road scene at the original alignment `(60, 0, 0)`. Create exactly `tileDiameter * tileDiameter` slots. For a quarter turn use angle and compensating plot offset: turn 0 `(0, 0, 0)`, turn 1 `(Math.PI / 2, 0, 20)`, turn 2 `(Math.PI, 20, 20)`, and turn 3 `(-Math.PI / 2, 20, 0)`. Reassign released slots, replace their child clone only when building id changes, and position each slot at `coordinate * 60 - origin` plus the rotation offset.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 Run typecheck, tests, and build. Commit as `feat: stream deterministic building views`.
 
@@ -598,29 +598,29 @@ Run typecheck, tests, and build. Commit as `feat: stream deterministic building 
 - Consumes: `TrafficSimulation`, `AssetCatalog`, scene, city view, camera controller, quality profile, and fixed-step accumulator.
 - Produces: `TrafficView.sync(vehicles, origin, alpha)`, `startApp(elements)`, and browser bootstrap.
 
-- [ ] **Step 1: Write interpolation tests**
+- [x] **Step 1: Write interpolation tests**
 
 Test a pure `interpolatedVehiclePoint(vehicle, alpha)` helper. For progress 10 to 14, east must yield x values 10, 12, and 14 at alpha 0, 0.5, and 1. For south, verify progress interpolation is converted through `positionOnLane` and z decreases.
 
-- [ ] **Step 2: Confirm failure**
+- [x] **Step 2: Confirm failure**
 
 Run: `bun run test -- tests/traffic-view.test.ts`
 
 Expected: FAIL because the helper is missing.
 
-- [ ] **Step 3: Implement the vehicle view pool**
+- [x] **Step 3: Implement the vehicle view pool**
 
 Create one view per simulation slot using its prototype id. On sync, hide inactive slots; replace a clone only when prototype id changes; interpolate progress; convert with `positionOnLane`; subtract render origin; and write x-z while retaining the prototype's authored y, rotation, and scale.
 
-- [ ] **Step 4: Replace legacy script tags with the module entry**
+- [x] **Step 4: Replace legacy script tags with the module entry**
 
 Keep a single `<canvas id="city-canvas">` and `<script type="module" src="/src/main.ts"></script>`. Remove the six legacy script tags. Task 10 will add the overlay beside the canvas. Do not delete the existing asset files.
 
-- [ ] **Step 5: Compose the app loop**
+- [x] **Step 5: Compose the app loop**
 
 Bootstrap quality, scene, assets, city view, traffic simulation, traffic view, and camera controller in that order. Each animation frame updates the camera, derives the center grid cell from logical position, updates the city view, consumes capped fixed traffic steps, syncs interpolated vehicle views, follows the shadow target, and renders. When `document.hidden` is true, skip accumulation and reset the previous timestamp.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 Run typecheck, all tests, and production build. Start `bun run dev`, open the local page, and verify the scene loads with buildings and four-way traffic. Commit as `feat: integrate endless city rendering and traffic`.
 
@@ -639,29 +639,29 @@ Run typecheck, all tests, and production build. Start `bun run dev`, open the lo
 - Consumes: asset progress, fatal/nonfatal bootstrap errors, renderer context events, and frame timestamps.
 - Produces: `OverlayController` with `showLoading`, `showReady`, `showError`, `showContextLost`, `updateFps`, and `dispose`.
 
-- [ ] **Step 1: Write state-transition tests**
+- [x] **Step 1: Write state-transition tests**
 
 Using a small DOM fixture, assert loading text updates to `Loading city 8/17`, ready state removes the blocking overlay, help opens and closes with `aria-expanded`, diagnostics stay hidden by default, an error shows its message and retry button, and context loss shows `Restoring the city…`.
 
-- [ ] **Step 2: Confirm failure**
+- [x] **Step 2: Confirm failure**
 
 Run: `bun run test -- tests/overlay.test.ts --environment jsdom`
 
 Expected: FAIL because `OverlayController` is missing.
 
-- [ ] **Step 3: Add semantic overlay markup**
+- [x] **Step 3: Add semantic overlay markup**
 
 Include a compact title, help button, help panel with mouse and touch instructions, a statistics checkbox, loading status with `role="status"`, error panel with retry button, and hidden FPS output. Use text glyphs only; do not add icon files. All buttons need explicit `type="button"` and accessible names; the checkbox needs a visible label.
 
-- [ ] **Step 4: Replace the old CSS**
+- [x] **Step 4: Replace the old CSS**
 
 Use a system stack, full-screen canvas, translucent dark panels, high-contrast cream text, visible focus rings, responsive spacing, and `prefers-reduced-motion` to remove overlay transitions. The help panel must avoid covering the central scene and fit a 320-pixel viewport.
 
-- [ ] **Step 5: Implement overlay behavior and app recovery**
+- [x] **Step 5: Implement overlay behavior and app recovery**
 
 Connect actual asset progress. Auto-dismiss initial help after six seconds unless focused or hovered. Keep the help button available. Calculate FPS over one-second samples and reveal it only when `?debug=1` or the help-panel statistics toggle is enabled. On fatal load error, stop the loop and wire retry to `window.location.reload()`. On `webglcontextlost`, prevent default, pause, and show restoration state; on `webglcontextrestored`, resume and hide it. Display a readable unsupported-WebGL message when renderer construction fails.
 
-- [ ] **Step 6: Verify desktop and mobile behavior and commit**
+- [x] **Step 6: Verify desktop and mobile behavior and commit**
 
 Run tests and build. In the browser, verify 1280 by 720 and 390 by 844 viewports, keyboard focus, help recovery, debug stats, and mobile traffic. Commit as `feat: add resilient city interface`.
 
