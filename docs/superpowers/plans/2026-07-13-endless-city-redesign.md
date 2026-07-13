@@ -679,19 +679,19 @@ Run tests and build. In the browser, verify 1280 by 720 and 390 by 844 viewports
 - Consumes: the completed application behavior, scripts, architecture, and verified runtime evidence.
 - Produces: user-facing setup/controls and maintainer-facing rationale.
 
-- [ ] **Step 1: Rewrite the README**
+- [x] **Step 1: Rewrite the README**
 
 Document the visual concept, mouse/touch controls, adaptive mobile traffic, prerequisites, `bun install`, `bun run dev`, `bun run typecheck`, `bun run test`, `bun run build`, static `dist/` deployment, project structure, existing-asset constraint, and license. Use the local `preview.png` in the preview section instead of a remote raw-GitHub URL.
 
-- [ ] **Step 2: Document the legacy audit**
+- [x] **Step 2: Document the legacy audit**
 
 Describe the wrong-axis z-boundary mutation, `x + 58` coordinate-space correction, all-car raycasts, frame-dependent speed, unreachable direction offsets, fixed board/camera teleports, repeated parsing, mobile traffic removal, obsolete gamma flags, and missing failure state. For each, name the replacement module and invariant.
 
-- [ ] **Step 3: Document the architecture**
+- [x] **Step 3: Document the architecture**
 
 Explain logical coordinates, 60-unit blocks, deterministic hashing, tile pooling, road alignment, render-origin shifts, vehicle prototype extraction, lane offsets, fixed-step following, intersection reservations, hidden recycling, quality profiles, and error lifecycle. Include a short data-flow diagram in Mermaid and list the non-goals.
 
-- [ ] **Step 4: Run the complete automated gate**
+- [x] **Step 4: Run the complete automated gate**
 
 Run:
 
