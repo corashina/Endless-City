@@ -1,16 +1,19 @@
 import { startApp } from './app'
+import { OverlayController } from './ui/overlay'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#city-canvas')
-const loading = document.querySelector<HTMLElement>('.load')
-const loadingProgress = loading?.querySelector<HTMLElement>('p')
+const interfaceRoot = document.querySelector<HTMLElement>('#city-interface')
 
 if (canvas === null) throw new Error('Missing #city-canvas')
+if (interfaceRoot === null) throw new Error('Missing #city-interface')
 
-const reportError = (error: unknown): void => {
-  console.error(error)
-  if (loadingProgress !== null && loadingProgress !== undefined) {
-    loadingProgress.textContent = 'Unable to load city'
-  }
-}
+const overlay = new OverlayController(interfaceRoot, {
+  debug: new URLSearchParams(window.location.search).get('debug') === '1',
+  retry: () => window.location.reload(),
+})
 
-void startApp({ canvas, loading, loadingProgress, onError: reportError }).catch(reportError)
+void startApp({
+  canvas,
+  overlay,
+  onError: (error) => console.error(error),
+}).catch(() => undefined)

@@ -1,142 +1,251 @@
-@import url('https://fonts.googleapis.com/css?family=Product+Sans:400');
-
 :root {
-    --background: #1c1c1c;
-    --content: #fffdd0;
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  --ink: #151513;
+  --panel: rgb(21 21 19 / 88%);
+  --cream: #f2ead8;
+  --muted: #bcb5a6;
+  --line: rgb(242 234 216 / 24%);
+  --accent: #c68555;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
-    font: 100% "Product Sans", sans-serif;
-    background-color: var(--background);
-    margin: 0px;
-    overflow: hidden;
-    position: relative;
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--ink);
 }
 
-.load {
-    width: 100%;
-    height: 100%;
-    background: var(--background);
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%)
+button,
+input {
+  font: inherit;
 }
 
-p {
-    text-align: center;
-    color: var(--content);
-    margin: 0;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%)
+button {
+  color: inherit;
 }
 
-.lds-roller {
-    display: inline-block;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 128px;
-    height: 128px;
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
 }
 
-.lds-roller div {
-    animation: lds-roller 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-    transform-origin: 64px 64px;
+button:active {
+  transform: translateY(1px);
 }
 
-.lds-roller div:after {
-    content: " ";
-    display: block;
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--content);
-    margin: -6px 0 0 -6px;
+[hidden] {
+  display: none !important;
 }
 
-.lds-roller div:nth-child(1) {
-    animation-delay: -0.036s;
+#city-canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
 }
 
-.lds-roller div:nth-child(1):after {
-    top: 100px;
-    left: 100px;
+.city-interface {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  color: var(--cream);
 }
 
-.lds-roller div:nth-child(2) {
-    animation-delay: -0.072s;
+.city-header {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: max(0.75rem, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.45rem 0.5rem 0.45rem 0.75rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  pointer-events: auto;
 }
 
-.lds-roller div:nth-child(2):after {
-    top: 108px;
-    left: 90px;
+.city-header h1 {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.lds-roller div:nth-child(3) {
-    animation-delay: -0.108s;
+.text-button,
+.retry-button {
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  transition: transform 140ms ease;
 }
 
-.lds-roller div:nth-child(3):after {
-    top: 114px;
-    left: 78px;
+.text-button {
+  min-height: 2rem;
+  padding: 0.35rem 0.6rem;
+  color: var(--cream);
+  font-size: 0.75rem;
 }
 
-.lds-roller div:nth-child(4) {
-    animation-delay: -0.144s;
+.text-button:hover,
+.retry-button:hover {
+  border-color: var(--accent);
+  background: rgb(198 133 85 / 16%);
 }
 
-.lds-roller div:nth-child(4):after {
-    top: 116px;
-    left: 64px;
+.help-panel {
+  position: absolute;
+  top: max(4rem, calc(env(safe-area-inset-top) + 4rem));
+  right: max(0.75rem, env(safe-area-inset-right));
+  width: min(19rem, calc(100% - 1.5rem));
+  max-height: calc(100dvh - 5rem - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  pointer-events: auto;
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
-.lds-roller div:nth-child(5) {
-    animation-delay: -0.18s;
+.instruction-group + .instruction-group {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
 }
 
-.lds-roller div:nth-child(5):after {
-    top: 114px;
-    left: 50px;
+.instruction-group h2,
+.error-panel h2 {
+  margin: 0 0 0.3rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
-.lds-roller div:nth-child(6) {
-    animation-delay: -0.216s;
+.instruction-group p,
+.error-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
-.lds-roller div:nth-child(6):after {
-    top: 108px;
-    left: 38px;
+.statistics-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  color: var(--cream);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  cursor: pointer;
 }
 
-.lds-roller div:nth-child(7) {
-    animation-delay: -0.252s;
+.statistics-label input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0.05rem 0 0;
+  accent-color: var(--accent);
 }
 
-.lds-roller div:nth-child(7):after {
-    top: 100px;
-    left: 28px;
+.fps-output {
+  position: absolute;
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  min-width: 4.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--cream);
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  font-size: 0.75rem;
+  text-align: right;
 }
 
-.lds-roller div:nth-child(8) {
-    animation-delay: -0.288s;
+.blocking-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 1rem;
+  background: rgb(21 21 19 / 78%);
+  pointer-events: auto;
+  transition: opacity 180ms ease;
 }
 
-.lds-roller div:nth-child(8):after {
-    top: 90px;
-    left: 20px;
+.status-message,
+.error-panel {
+  width: min(26rem, 100%);
+  margin: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
 }
 
-@keyframes lds-roller {
-    0% {
-        transform: rotate(0deg);
-    }
+.status-message {
+  color: var(--cream);
+  font-size: 0.875rem;
+  text-align: center;
+}
 
-    100% {
-        transform: rotate(360deg);
-    }
+.error-panel {
+  text-align: left;
+}
+
+.error-panel p {
+  overflow-wrap: anywhere;
+}
+
+.retry-button {
+  min-height: 2.5rem;
+  margin-top: 1rem;
+  padding: 0.55rem 1rem;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+@media (max-width: 420px) {
+  .city-header {
+    right: 0.75rem;
+    justify-content: space-between;
+  }
+
+  .help-panel {
+    top: max(3.75rem, calc(env(safe-area-inset-top) + 3.75rem));
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    max-height: calc(100dvh - 4.75rem - env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .help-panel,
+  .blocking-overlay,
+  .text-button,
+  .retry-button {
+    transition: none;
+  }
 }

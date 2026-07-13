@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest'
-import { startApp, startOwnedLoop } from '../src/app'
+import { completeOverlayBootstrap, startApp, startOwnedLoop } from '../src/app'
 import type { SceneContext } from '../src/rendering/scene'
 
 function createLoopHarness(runFrame: (timestamp: number) => void = () => undefined) {
@@ -94,6 +94,18 @@ describe('owned application lifecycle', () => {
     expect(harness.onError).toHaveBeenCalledOnce()
     expect(harness.onError).toHaveBeenCalledWith(frameError)
   })
+
+  it('pauses and resumes rendering without disposing the scene', () => {
+    const harness = createLoopHarness()
+
+    harness.handle.pause()
+    expect(harness.cancelAnimationFrame).toHaveBeenCalledWith(17)
+    expect(harness.disposeScene).not.toHaveBeenCalled()
+
+    harness.handle.resume()
+    expect(harness.requestAnimationFrame).toHaveBeenCalledTimes(2)
+    harness.handle.dispose()
+  })
 })
 
 describe('startApp setup cleanup', () => {
@@ -109,5 +121,23 @@ describe('startApp setup cleanup', () => {
     })).rejects.toBe(setupError)
 
     expect(dispose).toHaveBeenCalledOnce()
+  })
+})
+
+describe('overlay bootstrap recovery', () => {
+  it('does not hide restoration status when context is lost during loading', () => {
+    const overlay = { showReady: vi.fn() }
+
+    completeOverlayBootstrap(overlay, true)
+
+    expect(overlay.showReady).not.toHaveBeenCalled()
+  })
+
+  it('dismisses loading after bootstrap when the context is healthy', () => {
+    const overlay = { showReady: vi.fn() }
+
+    completeOverlayBootstrap(overlay, false)
+
+    expect(overlay.showReady).toHaveBeenCalledOnce()
   })
 })

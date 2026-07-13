@@ -15,6 +15,7 @@ import { TrafficView } from './rendering/traffic-view'
 import { consumeFixedSteps } from './traffic/following'
 import { TrafficSimulation } from './traffic/simulation'
 import type { TrafficConfig } from './traffic/types'
+import type { OverlayController } from './ui/overlay'
 
 const TRAFFIC_CONFIG = Object.freeze({
   minimumGap: 3,
@@ -29,12 +30,15 @@ const TRAFFIC_CONFIG = Object.freeze({
 
 export interface AppElements {
   readonly canvas: HTMLCanvasElement
+  readonly overlay?: OverlayController
   readonly loading?: HTMLElement | null
   readonly loadingProgress?: HTMLElement | null
   readonly onError?: (error: unknown) => void
 }
 
 export interface AppHandle {
+  pause(): void
+  resume(): void
   dispose(): void
 }
 
@@ -65,8 +69,16 @@ const centerGridCell = (x: number, z: number): GridCoordinate => ({
   z: Math.round(z / BLOCK_SIZE),
 })
 
+export function completeOverlayBootstrap(
+  overlay: Pick<OverlayController, 'showReady'> | undefined,
+  contextLost: boolean,
+): void {
+  if (!contextLost) overlay?.showReady()
+}
+
 export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
   let disposed = false
+  let paused = false
   let frameHandle: number | undefined
 
   const resizeListener: EventListener = () => input.onResize()
@@ -74,6 +86,19 @@ export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
   const pageHideListener: EventListener = () => handle.dispose()
 
   const handle: AppHandle = {
+    pause() {
+      if (disposed || paused) return
+      paused = true
+      if (frameHandle !== undefined) {
+        input.cancelAnimationFrame(frameHandle)
+        frameHandle = undefined
+      }
+    },
+    resume() {
+      if (disposed || !paused) return
+      paused = false
+      frameHandle = input.requestAnimationFrame(frame)
+    },
     dispose() {
       if (disposed) return
       disposed = true
@@ -91,7 +116,7 @@ export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
 
   const frame: FrameRequestCallback = (timestamp) => {
     frameHandle = undefined
-    if (disposed) return
+    if (disposed || paused) return
 
     try {
       input.runFrame(timestamp)
@@ -101,7 +126,7 @@ export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
       return
     }
 
-    if (!disposed) frameHandle = input.requestAnimationFrame(frame)
+    if (!disposed && !paused) frameHandle = input.requestAnimationFrame(frame)
   }
 
   try {
@@ -129,17 +154,55 @@ export async function startApp(
     width: window.innerWidth,
     devicePixelRatio: window.devicePixelRatio,
   })
-  const context = (dependencies.createScene ?? createSceneContext)(elements.canvas, profile)
+  const reportError = (error: unknown): void => {
+    elements.overlay?.showError(error)
+    elements.onError?.(error)
+  }
+  let context
+  try {
+    context = (dependencies.createScene ?? createSceneContext)(elements.canvas, profile)
+  } catch (cause) {
+    const error = new Error(
+      'WebGL is unavailable. Try a current browser with hardware acceleration enabled.',
+      { cause },
+    )
+    reportError(error)
+    throw error
+  }
   let contextDisposed = false
+  let recoveryListenersRemoved = false
   const disposeContext = (): void => {
     if (contextDisposed) return
     contextDisposed = true
     context.dispose()
   }
   let handle: AppHandle | undefined
+  let contextLost = false
+
+  const contextLostListener: EventListener = (event) => {
+    event.preventDefault()
+    contextLost = true
+    handle?.pause()
+    elements.overlay?.showContextLost()
+  }
+  const contextRestoredListener: EventListener = () => {
+    contextLost = false
+    elements.overlay?.showReady()
+    handle?.resume()
+  }
+  const removeRecoveryListeners = (): void => {
+    if (recoveryListenersRemoved) return
+    recoveryListenersRemoved = true
+    elements.canvas.removeEventListener('webglcontextlost', contextLostListener)
+    elements.canvas.removeEventListener('webglcontextrestored', contextRestoredListener)
+  }
+
+  elements.canvas.addEventListener('webglcontextlost', contextLostListener)
+  elements.canvas.addEventListener('webglcontextrestored', contextRestoredListener)
 
   try {
     const assets = await (dependencies.loadAssetCatalog ?? loadAssets)(({ loaded, total }) => {
+      elements.overlay?.showLoading(loaded, total)
       if (elements.loadingProgress !== null && elements.loadingProgress !== undefined) {
         elements.loadingProgress.textContent = `${loaded} / ${total}`
       }
@@ -203,9 +266,10 @@ export async function startApp(
       context.directionalLight.target.position.copy(shadowTarget)
       context.directionalLight.position.copy(shadowTarget).add(shadowOffset)
       context.renderer.render(context.scene, context.camera)
+      elements.overlay?.updateFps(timestamp)
     }
 
-    handle = startOwnedLoop({
+    const loopHandle = startOwnedLoop({
       windowTarget: window,
       documentTarget: document,
       requestAnimationFrame: (callback) => window.requestAnimationFrame(callback),
@@ -213,15 +277,31 @@ export async function startApp(
       onResize: resize,
       onVisibilityChange: visibilityChange,
       runFrame: frame,
-      disposeScene: disposeContext,
-      onError: elements.onError ?? ((error) => console.error(error)),
+      disposeScene: () => {
+        removeRecoveryListeners()
+        disposeContext()
+      },
+      onError: reportError,
     })
+    handle = {
+      pause: () => loopHandle.pause(),
+      resume: () => loopHandle.resume(),
+      dispose: () => {
+        removeRecoveryListeners()
+        loopHandle.dispose()
+        elements.overlay?.dispose()
+      },
+    }
+    if (contextLost) handle.pause()
     elements.loading?.remove()
+    completeOverlayBootstrap(elements.overlay, contextLost)
 
     return handle
   } catch (error) {
+    removeRecoveryListeners()
     if (handle === undefined) disposeContext()
     else handle.dispose()
+    reportError(error)
     throw error
   }
 }
