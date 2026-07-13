@@ -7,7 +7,11 @@ import { WORLD_SEED } from '../src/config'
 import type { AssetCatalog } from '../src/rendering/assets'
 import { CityView, planTileAssignments } from '../src/rendering/city-view'
 import type { QualityProfile } from '../src/rendering/quality'
-import { createSceneGraph } from '../src/rendering/scene'
+import {
+  createSceneGraph,
+  disposeSceneResources,
+  resizeSceneViewport,
+} from '../src/rendering/scene'
 
 function applyPlan(
   current: Map<string, GridCoordinate>,
@@ -193,5 +197,42 @@ describe('createSceneGraph', () => {
       top: 180,
       bottom: -180,
     })
+  })
+})
+
+describe('scene lifecycle', () => {
+  it('resizes rendering state with capped DPR without changing camera position', () => {
+    const renderer = {
+      setPixelRatio: vi.fn(),
+      setSize: vi.fn(),
+      dispose: vi.fn(),
+    }
+    const camera = {
+      aspect: 1,
+      position: { x: 11, y: 100, z: -1 },
+      updateProjectionMatrix: vi.fn(),
+    }
+
+    resizeSceneViewport(renderer, camera, profile, {
+      width: 1280,
+      height: 720,
+      devicePixelRatio: 3,
+    })
+
+    expect(renderer.setPixelRatio).toHaveBeenCalledWith(1.5)
+    expect(renderer.setSize).toHaveBeenCalledWith(1280, 720, false)
+    expect(camera.aspect).toBe(1280 / 720)
+    expect(camera.updateProjectionMatrix).toHaveBeenCalledOnce()
+    expect(camera.position).toEqual({ x: 11, y: 100, z: -1 })
+  })
+
+  it('disposes controls and renderer resources', () => {
+    const controls = { dispose: vi.fn() }
+    const renderer = { dispose: vi.fn() }
+
+    disposeSceneResources(controls, renderer)
+
+    expect(controls.dispose).toHaveBeenCalledOnce()
+    expect(renderer.dispose).toHaveBeenCalledOnce()
   })
 })

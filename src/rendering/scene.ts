@@ -12,9 +12,51 @@ export interface SceneGraph {
   readonly hemisphereLight: THREE.HemisphereLight
 }
 
+export interface SceneViewport {
+  readonly width: number
+  readonly height: number
+  readonly devicePixelRatio: number
+}
+
+export interface ViewportRendererAdapter {
+  setPixelRatio(value: number): void
+  setSize(width: number, height: number, updateStyle?: boolean): void
+}
+
+export interface ViewportCameraAdapter {
+  aspect: number
+  updateProjectionMatrix(): void
+}
+
+export interface DisposableSceneResource {
+  dispose(): void
+}
+
 export interface SceneContext extends SceneGraph {
   readonly renderer: THREE.WebGLRenderer
   readonly controls: MapControls
+  resize(viewport: SceneViewport): void
+  dispose(): void
+}
+
+export function resizeSceneViewport(
+  renderer: ViewportRendererAdapter,
+  camera: ViewportCameraAdapter,
+  profile: QualityProfile,
+  viewport: SceneViewport,
+): void {
+  renderer.setPixelRatio(Math.min(viewport.devicePixelRatio || 1, profile.maxPixelRatio))
+  renderer.setSize(viewport.width, viewport.height, false)
+  camera.aspect = viewport.width / viewport.height
+  camera.updateProjectionMatrix()
+}
+
+export function disposeSceneResources(
+  controls: DisposableSceneResource,
+  renderer: DisposableSceneResource,
+): void {
+  controls.dispose()
+  renderer.dispose()
 }
 
 export function createSceneGraph(profile: QualityProfile, aspect: number): SceneGraph {
@@ -52,14 +94,27 @@ export function createScene(canvas: HTMLCanvasElement, profile: QualityProfile):
     antialias: true,
     powerPreference: 'high-performance',
   })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, profile.maxPixelRatio))
-  renderer.setSize(width, height, false)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  resizeSceneViewport(renderer, graph.camera, profile, {
+    width,
+    height,
+    devicePixelRatio: window.devicePixelRatio,
+  })
 
   const controls = new MapControls(graph.camera, canvas)
   controls.update()
 
-  return { ...graph, renderer, controls }
+  return {
+    ...graph,
+    renderer,
+    controls,
+    resize(viewport) {
+      resizeSceneViewport(renderer, graph.camera, profile, viewport)
+    },
+    dispose() {
+      disposeSceneResources(controls, renderer)
+    },
+  }
 }
