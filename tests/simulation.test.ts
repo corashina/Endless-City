@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BLOCK_SIZE, FIXED_STEP_SECONDS } from '../src/config'
-import { nextIntersection, positionOnLane } from '../src/traffic/lanes'
+import { occupiedIntersectionKeys } from '../src/traffic/intersections'
+import { positionOnLane } from '../src/traffic/lanes'
 import { TrafficSimulation } from '../src/traffic/simulation'
 import type {
   Direction,
@@ -54,30 +55,29 @@ const assertNoFollowingOverlap = (vehicles: readonly VehicleState[]): void => {
   }
 }
 
-const occupiedIntersectionKey = (vehicle: VehicleState): string | null => {
-  const rearBumper = vehicle.progress - vehicle.length / 2
-  const frontBumper = vehicle.progress + vehicle.length / 2
-  const intersection = nextIntersection(vehicle.lane, rearBumper)
-
-  return frontBumper > intersection.progress - config.intersectionHalfExtent
-    && rearBumper < intersection.progress + config.intersectionHalfExtent
-    ? intersection.key
-    : null
-}
-
 const assertNoSharedIntersectionZone = (vehicles: readonly VehicleState[]): void => {
   const occupants = new Set<string>()
 
   for (const vehicle of vehicles) {
     if (!vehicle.active) continue
-    const key = occupiedIntersectionKey(vehicle)
-    if (key === null) continue
-    if (occupants.has(key)) throw new Error(`Intersection ${key} has multiple occupants`)
-    occupants.add(key)
+    for (const key of occupiedIntersectionKeys(vehicle, config)) {
+      if (occupants.has(key)) throw new Error(`Intersection ${key} has multiple occupants`)
+      occupants.add(key)
+    }
   }
 }
 
 describe('traffic simulation', () => {
+  it('recognizes the trailing half of an occupied intersection zone', () => {
+    const trailingVehicle: Pick<VehicleState, 'lane' | 'progress' | 'length'> = {
+      lane: { direction: 'east', line: 0 },
+      progress: -13,
+      length: 6,
+    }
+
+    expect(occupiedIntersectionKeys(trailingVehicle, config)).toEqual(['0:0'])
+  })
+
   it('copies progress before advancing and exposes reservations read-only', () => {
     const simulation = new TrafficSimulation({
       count: 20,

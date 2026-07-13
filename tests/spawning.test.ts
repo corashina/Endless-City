@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WorldPoint } from '../src/city/types'
+import { occupiedIntersectionKeys } from '../src/traffic/intersections'
 import { positionOnLane } from '../src/traffic/lanes'
 import { createTrafficPool, recycleTraffic } from '../src/traffic/spawning'
 import type {
@@ -123,5 +124,74 @@ describe('deterministic traffic spawning', () => {
     expect(distance).toBeGreaterThan(config.protectedRadius)
     expect(distance).toBeLessThanOrEqual(config.simulationRadius)
     assertMinimumLaneGaps([inside, outside])
+  })
+
+  it('keeps a blocked slot inactive and safely retries it on a later step', () => {
+    const blockedConfig: TrafficConfig = { ...config, minimumGap: 1_000 }
+    const blockedVehicle: VehicleState = {
+      id: 100,
+      prototypeId: 'east-short',
+      length: 4,
+      lane: { direction: 'east', line: 0 },
+      previousProgress: config.simulationRadius + 1,
+      progress: config.simulationRadius + 1,
+      speed: 9,
+      desiredSpeed: 11,
+      active: true,
+      reservationKey: null,
+    }
+    const blockers: VehicleState[] = directions.flatMap((direction, directionIndex) =>
+      Array.from({ length: 7 }, (_, lineIndex) => ({
+        id: directionIndex * 7 + lineIndex,
+        prototypeId: `${direction}-short`,
+        length: 4,
+        lane: { direction, line: lineIndex - 3 },
+        previousProgress: 0,
+        progress: 0,
+        speed: 0,
+        desiredSpeed: 8,
+        active: true,
+        reservationKey: null,
+      })),
+    )
+    const blockedVehicles = [blockedVehicle, ...blockers]
+
+    recycleTraffic({
+      vehicles: blockedVehicles,
+      seed: 12345,
+      step: 0,
+      camera,
+      prototypes,
+      config: blockedConfig,
+    })
+    expect(blockedVehicle.active).toBe(false)
+    const firstFailedState = structuredClone(blockedVehicle)
+
+    recycleTraffic({
+      vehicles: blockedVehicles,
+      seed: 12345,
+      step: 1,
+      camera,
+      prototypes,
+      config: blockedConfig,
+    })
+    expect(blockedVehicle).toEqual(firstFailedState)
+
+    const laterCamera: WorldPoint = { x: 60, z: 0 }
+    recycleTraffic({
+      vehicles: [blockedVehicle],
+      seed: 12345,
+      step: 2,
+      camera: laterCamera,
+      prototypes,
+      config,
+    })
+
+    expect(blockedVehicle.active).toBe(true)
+    const position = positionOnLane(blockedVehicle.lane, blockedVehicle.progress)
+    const distance = Math.hypot(position.x - laterCamera.x, position.z - laterCamera.z)
+    expect(distance).toBeGreaterThan(config.protectedRadius)
+    expect(distance).toBeLessThanOrEqual(config.simulationRadius)
+    expect(occupiedIntersectionKeys(blockedVehicle, config)).toEqual([])
   })
 })

@@ -1,7 +1,8 @@
 import { hashCoordinates } from '../city/hash'
 import type { WorldPoint } from '../city/types'
 import { BLOCK_SIZE } from '../config'
-import { laneKey, nextIntersection, positionOnLane } from './lanes'
+import { occupiedIntersectionKeys } from './intersections'
+import { laneKey, positionOnLane } from './lanes'
 import type {
   Direction,
   Lane,
@@ -108,14 +109,11 @@ const hasMinimumGaps = (
 const intersectsConflictZone = (
   candidate: SpawnCandidate,
   config: TrafficConfig,
-): boolean => {
-  const rearBumper = candidate.progress - candidate.prototype.length / 2
-  const frontBumper = candidate.progress + candidate.prototype.length / 2
-  const intersection = nextIntersection(candidate.lane, rearBumper)
-
-  return frontBumper > intersection.progress - config.intersectionHalfExtent
-    && rearBumper < intersection.progress + config.intersectionHalfExtent
-}
+): boolean => occupiedIntersectionKeys({
+  lane: candidate.lane,
+  progress: candidate.progress,
+  length: candidate.prototype.length,
+}, config).length > 0
 
 const initialCandidate = (
   input: CreateTrafficPoolInput,
