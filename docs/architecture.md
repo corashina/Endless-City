@@ -37,6 +37,8 @@ render position = logical position - render origin
 
 `src/camera/controller.ts` owns this conversion. City and traffic simulation coordinates are never rewritten during a shift, so camera recentering cannot change tile identity, lane gaps, reservations, or recycling decisions. Local camera coordinates remain bounded to a small neighborhood of the renderer origin.
 
+MapControls derives a ground-plane reference when a pointer gesture starts. To keep that reference coherent, `CameraController` listens to the controls' public `start` and `end` events and defers render-origin mutation while the gesture is active. The first update after `end` applies the normal whole-block recenter, so dragging stays continuous and the local camera is bounded again immediately after the gesture. Controller disposal removes both listeners.
+
 ## Asset and view lifecycle
 
 `src/rendering/assets.ts` requests the road, 15 building prototypes, and `cars.gltf` once. Source assets remain in `js/clusters/`; `vite.config.ts` treats `js/` as the public directory, so development and production both serve them from `/clusters/`. Building scenes are cached and cloned into tile slots. A failed building uses the existing park prototype when available, then an empty plot; the required road has no silent fallback.

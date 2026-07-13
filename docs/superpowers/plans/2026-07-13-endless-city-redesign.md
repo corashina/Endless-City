@@ -717,6 +717,8 @@ Verify all of the following in the running production build:
 - Confirm default UI has no FPS panel and `?debug=1` does.
 - Confirm the browser console has no errors.
 
+Authoritative evidence: one production page traveled by controls through all four far axes, revisited three deterministic tile windows, and completed a 122.149-second traffic observation with formal samples every 30 seconds. The interaction-safe recentering follow-up plan records the exact route and verification workflow.
+
 - [x] **Step 6: Commit documentation and final verified state**
 
 Run:
