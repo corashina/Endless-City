@@ -350,6 +350,7 @@ export async function startApp(
       onVisibilityChange: visibilityChange,
       runFrame: frame,
       disposeScene: () => {
+        cameraController.dispose()
         removeRecoveryListeners()
         disposeContext()
       },

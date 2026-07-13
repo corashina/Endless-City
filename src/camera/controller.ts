@@ -1,8 +1,12 @@
 import type * as THREE from 'three'
+import type { MapControls } from 'three/addons/controls/MapControls.js'
 import { logicalCamera, recenterFrame, type RenderFrame } from '../city/origin'
 import type { WorldPoint } from '../city/types'
 
-export interface MapControlsAdapter {
+export interface MapControlsAdapter extends Pick<
+  MapControls,
+  'target' | 'addEventListener' | 'removeEventListener'
+> {
   readonly target: THREE.Vector3
   update(): boolean | void
 }
@@ -14,6 +18,13 @@ export interface CameraState {
 
 export class CameraController {
   private currentOrigin: WorldPoint
+  private interactionActive = false
+  private readonly handleInteractionStart = (): void => {
+    this.interactionActive = true
+  }
+  private readonly handleInteractionEnd = (): void => {
+    this.interactionActive = false
+  }
 
   constructor(
     private readonly camera: THREE.Camera,
@@ -21,6 +32,8 @@ export class CameraController {
     initialOrigin: WorldPoint = { x: 0, z: 0 },
   ) {
     this.currentOrigin = { ...initialOrigin }
+    this.controls.addEventListener('start', this.handleInteractionStart)
+    this.controls.addEventListener('end', this.handleInteractionEnd)
   }
 
   update(): CameraState {
@@ -30,7 +43,7 @@ export class CameraController {
       localTarget: { x: this.controls.target.x, z: this.controls.target.z },
       origin: this.currentOrigin,
     }
-    const recentered = recenterFrame(frame)
+    const recentered = this.interactionActive ? frame : recenterFrame(frame)
     const originChanged = recentered.origin.x !== this.currentOrigin.x
       || recentered.origin.z !== this.currentOrigin.z
 
@@ -52,5 +65,10 @@ export class CameraController {
       logicalCamera: logicalCamera(recentered),
       origin: { ...this.currentOrigin },
     }
+  }
+
+  dispose(): void {
+    this.controls.removeEventListener('start', this.handleInteractionStart)
+    this.controls.removeEventListener('end', this.handleInteractionEnd)
   }
 }

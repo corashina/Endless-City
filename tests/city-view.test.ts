@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import type { OrbitControlsEventMap } from 'three/addons/controls/OrbitControls.js'
 import { describe, expect, it, vi } from 'vitest'
 import { CameraController } from '../src/camera/controller'
 import { chooseTile } from '../src/city/layout'
@@ -137,23 +138,71 @@ describe('CityView', () => {
 })
 
 describe('CameraController', () => {
+  class InteractionControlsHarness extends THREE.EventDispatcher<OrbitControlsEventMap> {
+    readonly target = new THREE.Vector3(120, 7, -110)
+    updates = 0
+
+    update(): void {
+      this.updates += 1
+    }
+  }
+
+  it('defers recentering until a controls gesture ends', () => {
+    const camera = new THREE.PerspectiveCamera()
+    camera.position.set(131, 100, -121)
+    const controls = new InteractionControlsHarness()
+    const controller = new CameraController(camera, controls)
+
+    controls.dispatchEvent({ type: 'start' })
+    const activeState = controller.update()
+
+    expect(activeState).toEqual({
+      logicalCamera: { x: 131, z: -121 },
+      origin: { x: 0, z: 0 },
+    })
+    expect(camera.position.toArray()).toEqual([131, 100, -121])
+    expect(controls.target.toArray()).toEqual([120, 7, -110])
+
+    controls.dispatchEvent({ type: 'end' })
+    const endedState = controller.update()
+
+    expect(endedState).toEqual({
+      logicalCamera: { x: 131, z: -121 },
+      origin: { x: 120, z: -120 },
+    })
+    expect(camera.position.toArray()).toEqual([11, 100, -1])
+    expect(controls.target.toArray()).toEqual([0, 7, 10])
+  })
+
+  it('removes controls interaction listeners on dispose', () => {
+    const camera = new THREE.PerspectiveCamera()
+    camera.position.set(131, 100, -121)
+    const controls = new InteractionControlsHarness()
+    const removeEventListener = vi.spyOn(controls, 'removeEventListener')
+    const controller = new CameraController(camera, controls)
+
+    controller.dispose()
+
+    expect(removeEventListener).toHaveBeenNthCalledWith(1, 'start', expect.any(Function))
+    expect(removeEventListener).toHaveBeenNthCalledWith(2, 'end', expect.any(Function))
+    controls.dispatchEvent({ type: 'start' })
+    expect(controller.update()).toEqual({
+      logicalCamera: { x: 131, z: -121 },
+      origin: { x: 120, z: -120 },
+    })
+  })
+
   it('updates controls then recenters x-z while preserving camera and target heights', () => {
     const camera = new THREE.PerspectiveCamera()
     camera.position.set(131, 100, -121)
-    const target = new THREE.Vector3(120, 7, -110)
-    let updates = 0
-    const controller = new CameraController(camera, {
-      target,
-      update() {
-        updates += 1
-      },
-    }, { x: 600, z: -300 })
+    const controls = new InteractionControlsHarness()
+    const controller = new CameraController(camera, controls, { x: 600, z: -300 })
 
     const state = controller.update()
 
-    expect(updates).toBe(1)
+    expect(controls.updates).toBe(1)
     expect(camera.position.toArray()).toEqual([11, 100, -1])
-    expect(target.toArray()).toEqual([0, 7, 10])
+    expect(controls.target.toArray()).toEqual([0, 7, 10])
     expect(state).toEqual({
       logicalCamera: { x: 731, z: -421 },
       origin: { x: 720, z: -420 },
@@ -163,10 +212,11 @@ describe('CameraController', () => {
   it('does not rewrite local positions while the origin is unchanged', () => {
     const camera = new THREE.PerspectiveCamera()
     camera.position.set(12, 42, -8)
-    const target = new THREE.Vector3(1, 3, 4)
-    const controller = new CameraController(camera, { target, update() {} })
+    const controls = new InteractionControlsHarness()
+    controls.target.set(1, 3, 4)
+    const controller = new CameraController(camera, controls)
     const cameraSet = vi.spyOn(camera.position, 'set')
-    const targetSet = vi.spyOn(target, 'set')
+    const targetSet = vi.spyOn(controls.target, 'set')
 
     const state = controller.update()
 

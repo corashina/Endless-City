@@ -58,7 +58,10 @@ function createRunnableScene() {
       camera,
       directionalLight,
       hemisphereLight: new THREE.HemisphereLight(),
-      controls: { target: new THREE.Vector3(), update: vi.fn() },
+      controls: Object.assign(new THREE.EventDispatcher(), {
+        target: new THREE.Vector3(),
+        update: vi.fn(),
+      }),
       renderer: { render: vi.fn() },
       resize,
       dispose,
