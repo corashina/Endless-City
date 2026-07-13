@@ -1,8 +1,63 @@
 // @vitest-environment jsdom
 
+import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import { completeOverlayBootstrap, startApp, startOwnedLoop } from '../src/app'
+import type { AssetCatalog } from '../src/rendering/assets'
 import type { SceneContext } from '../src/rendering/scene'
+import type { OverlayController } from '../src/ui/overlay'
+
+function createOverlayHarness() {
+  return {
+    showLoading: vi.fn(),
+    showReady: vi.fn(),
+    showError: vi.fn(),
+    showContextLost: vi.fn(),
+    updateFps: vi.fn(),
+    dispose: vi.fn(),
+  }
+}
+
+function createRunnableCatalog(): AssetCatalog {
+  const vehicleMetadata = (['east', 'west', 'north', 'south'] as const).map((direction) => ({
+    id: direction,
+    direction,
+    length: 4,
+  }))
+  return {
+    road: new THREE.Group(),
+    buildings: new Map(),
+    vehiclePrototypes: [],
+    vehicleMetadata,
+    vehiclesByDirection: new Map(),
+    cloneBuilding: () => null,
+    cloneVehicle: () => null,
+  }
+}
+
+function createRunnableScene() {
+  const scene = new THREE.Scene()
+  const camera = new THREE.PerspectiveCamera()
+  camera.position.set(10, 100, 10)
+  const directionalLight = new THREE.DirectionalLight()
+  scene.add(directionalLight, directionalLight.target)
+  const dispose = vi.fn()
+  const resize = vi.fn()
+  return {
+    dispose,
+    resize,
+    context: {
+      scene,
+      camera,
+      directionalLight,
+      hemisphereLight: new THREE.HemisphereLight(),
+      controls: { target: new THREE.Vector3(), update: vi.fn() },
+      renderer: { render: vi.fn() },
+      resize,
+      dispose,
+    } as unknown as SceneContext,
+  }
+}
 
 function createLoopHarness(runFrame: (timestamp: number) => void = () => undefined) {
   const windowTarget = new EventTarget()
@@ -16,6 +71,7 @@ function createLoopHarness(runFrame: (timestamp: number) => void = () => undefin
   const onResize = vi.fn()
   const onVisibilityChange = vi.fn()
   const disposeScene = vi.fn()
+  const disposeApplication = vi.fn()
   const onError = vi.fn()
   const handle = startOwnedLoop({
     windowTarget,
@@ -26,6 +82,7 @@ function createLoopHarness(runFrame: (timestamp: number) => void = () => undefin
     onVisibilityChange,
     runFrame,
     disposeScene,
+    disposeApplication,
     onError,
   })
 
@@ -37,6 +94,7 @@ function createLoopHarness(runFrame: (timestamp: number) => void = () => undefin
     onResize,
     onVisibilityChange,
     disposeScene,
+    disposeApplication,
     onError,
     handle,
     invokeFrame(timestamp = 0) {
@@ -87,10 +145,11 @@ describe('owned application lifecycle', () => {
     })
 
     harness.invokeFrame(100)
-    harness.handle.dispose()
+    harness.windowTarget.dispatchEvent(new Event('pagehide'))
 
     expect(harness.requestAnimationFrame).toHaveBeenCalledOnce()
     expect(harness.disposeScene).toHaveBeenCalledOnce()
+    expect(harness.disposeApplication).toHaveBeenCalledOnce()
     expect(harness.onError).toHaveBeenCalledOnce()
     expect(harness.onError).toHaveBeenCalledWith(frameError)
   })
@@ -121,6 +180,76 @@ describe('startApp setup cleanup', () => {
     })).rejects.toBe(setupError)
 
     expect(dispose).toHaveBeenCalledOnce()
+  })
+
+  it('returns to loading when WebGL is restored before assets are ready', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const dispose = vi.fn()
+    const context = { dispose } as unknown as SceneContext
+    const setupError = new Error('stop pending setup')
+    let rejectAssets: (error: Error) => void = () => undefined
+
+    const appPromise = startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => context,
+      loadAssetCatalog: (onProgress) => {
+        onProgress?.({ loaded: 8, total: 17, url: '/asset.glb' })
+        return new Promise((_, reject) => { rejectAssets = reject })
+      },
+    })
+
+    const lostEvent = new Event('webglcontextlost', { cancelable: true })
+    canvas.dispatchEvent(lostEvent)
+    canvas.dispatchEvent(new Event('webglcontextrestored'))
+
+    expect(lostEvent.defaultPrevented).toBe(true)
+    expect(overlay.showContextLost).toHaveBeenCalledOnce()
+    expect(overlay.showLoading).toHaveBeenLastCalledWith(8, 17)
+    expect(overlay.showLoading).toHaveBeenCalledTimes(2)
+    expect(overlay.showReady).not.toHaveBeenCalled()
+
+    rejectAssets(setupError)
+    await expect(appPromise).rejects.toBe(setupError)
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
+  it('uses outer application disposal for pagehide exactly once', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 91)
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const handle = await startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+    })
+
+    window.dispatchEvent(new Event('pagehide'))
+    window.dispatchEvent(new Event('resize'))
+    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+
+    expect(requestAnimationFrame).toHaveBeenCalledOnce()
+    expect(cancelAnimationFrame).toHaveBeenCalledOnce()
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(91)
+    expect(scene.dispose).toHaveBeenCalledOnce()
+    expect(scene.resize).not.toHaveBeenCalled()
+    expect(overlay.showContextLost).not.toHaveBeenCalled()
+    expect(overlay.dispose).toHaveBeenCalledOnce()
+
+    handle.dispose()
+    expect(cancelAnimationFrame).toHaveBeenCalledOnce()
+    expect(scene.dispose).toHaveBeenCalledOnce()
+    expect(overlay.dispose).toHaveBeenCalledOnce()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
   })
 })
 

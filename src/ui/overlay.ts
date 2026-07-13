@@ -143,10 +143,13 @@ export class OverlayController {
   }
 
   private readonly leaveHelp = (): void => {
-    this.helpHovered = this.helpPanel.matches(':hover')
-      || this.helpPanel.contains(document.activeElement)
-      || this.helpButton === document.activeElement
-    if (this.dismissPending && !this.helpHovered) this.setHelpOpen(false)
+    queueMicrotask(() => {
+      if (this.disposed) return
+      this.helpHovered = this.helpPanel.matches(':hover')
+        || this.helpPanel.contains(document.activeElement)
+        || this.helpButton === document.activeElement
+      if (this.dismissPending && !this.helpHovered) this.setHelpOpen(false)
+    })
   }
 
   private readonly autoDismissHelp = (): void => {

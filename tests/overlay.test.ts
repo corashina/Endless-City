@@ -21,7 +21,8 @@ function createFixture(): HTMLElement {
           <button id="retry-button" type="button">Retry</button>
         </div>
       </section>
-    </div>`
+    </div>
+    <button id="outside-control" type="button">Outside</button>`
 
   return document.querySelector<HTMLElement>('#city-interface')!
 }
@@ -100,7 +101,7 @@ describe('OverlayController', () => {
     expect(root.querySelector<HTMLElement>('#blocking-overlay')?.hidden).toBe(false)
   })
 
-  it('auto-dismisses initial help after six seconds unless it is hovered', () => {
+  it('auto-dismisses initial help after six seconds unless it is hovered', async () => {
     vi.useFakeTimers()
     const root = createFixture()
     const overlay = new OverlayController(root)
@@ -111,11 +112,12 @@ describe('OverlayController', () => {
     expect(panel.hidden).toBe(false)
 
     panel.dispatchEvent(new MouseEvent('mouseleave'))
+    await Promise.resolve()
     expect(panel.hidden).toBe(true)
     overlay.dispose()
   })
 
-  it('defers auto-dismiss while the help control has keyboard focus', () => {
+  it('keeps deferred help open while focus moves within the help region', async () => {
     vi.useFakeTimers()
     const root = createFixture()
     const overlay = new OverlayController(root)
@@ -126,8 +128,16 @@ describe('OverlayController', () => {
     vi.advanceTimersByTime(6_000)
     expect(panel.hidden).toBe(false)
 
-    button.blur()
+    const checkbox = root.querySelector<HTMLInputElement>('#statistics-toggle')!
+    checkbox.focus()
+    await Promise.resolve()
+    expect(panel.hidden).toBe(false)
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+
+    document.querySelector<HTMLButtonElement>('#outside-control')!.focus()
+    await Promise.resolve()
     expect(panel.hidden).toBe(true)
+    expect(button.getAttribute('aria-expanded')).toBe('false')
     overlay.dispose()
   })
 

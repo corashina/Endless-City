@@ -56,6 +56,7 @@ export interface OwnedLoopInput {
   readonly onVisibilityChange: () => void
   readonly runFrame: (timestamp: number) => void
   readonly disposeScene: () => void
+  readonly disposeApplication?: () => void
   readonly onError: (error: unknown) => void
 }
 
@@ -77,7 +78,8 @@ export function completeOverlayBootstrap(
 }
 
 export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
-  let disposed = false
+  let stopped = false
+  let applicationDisposed = false
   let paused = false
   let frameHandle: number | undefined
 
@@ -85,9 +87,22 @@ export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
   const visibilityListener: EventListener = () => input.onVisibilityChange()
   const pageHideListener: EventListener = () => handle.dispose()
 
+  const stop = (): void => {
+    if (stopped) return
+    stopped = true
+
+    if (frameHandle !== undefined) {
+      input.cancelAnimationFrame(frameHandle)
+      frameHandle = undefined
+    }
+    input.windowTarget.removeEventListener('resize', resizeListener)
+    input.documentTarget.removeEventListener('visibilitychange', visibilityListener)
+    input.disposeScene()
+  }
+
   const handle: AppHandle = {
     pause() {
-      if (disposed || paused) return
+      if (stopped || paused) return
       paused = true
       if (frameHandle !== undefined) {
         input.cancelAnimationFrame(frameHandle)
@@ -95,38 +110,32 @@ export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
       }
     },
     resume() {
-      if (disposed || !paused) return
+      if (stopped || !paused) return
       paused = false
       frameHandle = input.requestAnimationFrame(frame)
     },
     dispose() {
-      if (disposed) return
-      disposed = true
-
-      if (frameHandle !== undefined) {
-        input.cancelAnimationFrame(frameHandle)
-        frameHandle = undefined
-      }
-      input.windowTarget.removeEventListener('resize', resizeListener)
-      input.documentTarget.removeEventListener('visibilitychange', visibilityListener)
+      stop()
       input.windowTarget.removeEventListener('pagehide', pageHideListener)
-      input.disposeScene()
+      if (applicationDisposed) return
+      applicationDisposed = true
+      input.disposeApplication?.()
     },
   }
 
   const frame: FrameRequestCallback = (timestamp) => {
     frameHandle = undefined
-    if (disposed || paused) return
+    if (stopped || paused) return
 
     try {
       input.runFrame(timestamp)
     } catch (error) {
-      handle.dispose()
+      stop()
       input.onError(error)
       return
     }
 
-    if (!disposed && !paused) frameHandle = input.requestAnimationFrame(frame)
+    if (!stopped && !paused) frameHandle = input.requestAnimationFrame(frame)
   }
 
   try {
@@ -135,7 +144,8 @@ export function startOwnedLoop(input: OwnedLoopInput): AppHandle {
     input.windowTarget.addEventListener('pagehide', pageHideListener)
     frameHandle = input.requestAnimationFrame(frame)
   } catch (error) {
-    handle.dispose()
+    stop()
+    input.windowTarget.removeEventListener('pagehide', pageHideListener)
     throw error
   }
 
@@ -178,6 +188,8 @@ export async function startApp(
   }
   let handle: AppHandle | undefined
   let contextLost = false
+  let bootstrapReady = false
+  let lastLoadingProgress = { loaded: 0, total: 17 }
 
   const contextLostListener: EventListener = (event) => {
     event.preventDefault()
@@ -187,7 +199,8 @@ export async function startApp(
   }
   const contextRestoredListener: EventListener = () => {
     contextLost = false
-    elements.overlay?.showReady()
+    if (bootstrapReady) elements.overlay?.showReady()
+    else elements.overlay?.showLoading(lastLoadingProgress.loaded, lastLoadingProgress.total)
     handle?.resume()
   }
   const removeRecoveryListeners = (): void => {
@@ -202,6 +215,7 @@ export async function startApp(
 
   try {
     const assets = await (dependencies.loadAssetCatalog ?? loadAssets)(({ loaded, total }) => {
+      lastLoadingProgress = { loaded, total }
       elements.overlay?.showLoading(loaded, total)
       if (elements.loadingProgress !== null && elements.loadingProgress !== undefined) {
         elements.loadingProgress.textContent = `${loaded} / ${total}`
@@ -269,7 +283,7 @@ export async function startApp(
       elements.overlay?.updateFps(timestamp)
     }
 
-    const loopHandle = startOwnedLoop({
+    handle = startOwnedLoop({
       windowTarget: window,
       documentTarget: document,
       requestAnimationFrame: (callback) => window.requestAnimationFrame(callback),
@@ -281,18 +295,11 @@ export async function startApp(
         removeRecoveryListeners()
         disposeContext()
       },
+      disposeApplication: () => elements.overlay?.dispose(),
       onError: reportError,
     })
-    handle = {
-      pause: () => loopHandle.pause(),
-      resume: () => loopHandle.resume(),
-      dispose: () => {
-        removeRecoveryListeners()
-        loopHandle.dispose()
-        elements.overlay?.dispose()
-      },
-    }
     if (contextLost) handle.pause()
+    bootstrapReady = true
     elements.loading?.remove()
     completeOverlayBootstrap(elements.overlay, contextLost)
 
