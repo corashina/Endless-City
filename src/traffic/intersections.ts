@@ -10,7 +10,13 @@ export const planMissingMovements = (
   config: Pick<TrafficConfig, 'intersectionHalfExtent'>,
 ): void => {
   for (const vehicle of vehicles) {
-    if (!vehicle.active || vehicle.turn !== null || vehicle.plannedMovement !== null) continue
+    if (
+      !vehicle.active
+      || vehicle.turn !== null
+      || vehicle.plannedMovement !== null
+      || vehicle.clearingMovement !== null
+      || vehicle.ownedZoneKeys.length > 0
+    ) continue
 
     const maneuver = chooseManeuver(
       seed,
@@ -24,6 +30,7 @@ export const planMissingMovements = (
       maneuver,
       config.intersectionHalfExtent,
     )
+    vehicle.movementEntered = false
   }
 }
 

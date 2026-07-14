@@ -61,6 +61,7 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
     requestAgeSteps: 0,
+    movementEntered: false,
     grantExpiresAtStep: null,
     ownedZoneKeys: [],
     plannedMovement: null,
@@ -140,6 +141,7 @@ describe('deterministic traffic spawning', () => {
       expect(state.routeDecisionIndex).toBe(0)
       expect(state.offscreenStoppedSteps).toBe(0)
       expect(state.requestAgeSteps).toBe(0)
+      expect(state.movementEntered).toBe(false)
       expect(state.grantExpiresAtStep).toBeNull()
       expect(state.ownedZoneKeys).toEqual([])
       expect(state.plannedMovement).toBeNull()
@@ -181,8 +183,8 @@ describe('deterministic traffic spawning', () => {
       id: 1,
       prototypeId: 'east-long',
       length: 6,
-      previousProgress: config.simulationRadius + 1,
-      progress: config.simulationRadius + 1,
+      previousProgress: config.simulationRadius + 10,
+      progress: config.simulationRadius + 10,
       speed: 9,
       desiredSpeed: 11,
     })
@@ -203,16 +205,16 @@ describe('deterministic traffic spawning', () => {
     expect(outside.active).toBe(true)
     const position = positionOnLane(outside.lane, outside.progress)
     const distance = Math.hypot(position.x - camera.x, position.z - camera.z)
-    expect(distance).toBeGreaterThan(config.protectedRadius)
-    expect(distance).toBeLessThanOrEqual(config.simulationRadius)
+    expect(distance - outside.length / 2).toBeGreaterThan(config.protectedRadius)
+    expect(distance + outside.length / 2).toBeLessThanOrEqual(config.simulationRadius)
     assertMinimumLaneGaps([inside, outside])
   })
 
   it('refreshes deterministic driver state when recycling a vehicle', () => {
     const recycled = vehicle({
       id: 7,
-      previousProgress: config.simulationRadius + 1,
-      progress: config.simulationRadius + 1,
+      previousProgress: config.simulationRadius + 10,
+      progress: config.simulationRadius + 10,
       lifecycle: 3,
       traits: createDriverTraits(12345, 7, 3),
       routeDecisionIndex: 8,
@@ -236,6 +238,7 @@ describe('deterministic traffic spawning', () => {
     expect(recycled.routeDecisionIndex).toBe(0)
     expect(recycled.offscreenStoppedSteps).toBe(0)
     expect(recycled.requestAgeSteps).toBe(0)
+    expect(recycled.movementEntered).toBe(false)
     expect(recycled.grantExpiresAtStep).toBeNull()
     expect(recycled.ownedZoneKeys).toEqual([])
     expect(recycled.plannedMovement).toBeNull()
@@ -301,8 +304,8 @@ describe('deterministic traffic spawning', () => {
     expect(state.active).toBe(true)
     const pose = poseForVehicle(state)
     const distance = Math.hypot(pose.x - camera.x, pose.z - camera.z)
-    expect(distance).toBeGreaterThan(config.protectedRadius)
-    expect(distance).toBeLessThanOrEqual(config.simulationRadius)
+    expect(distance - state.length / 2).toBeGreaterThan(config.protectedRadius)
+    expect(distance + state.length / 2).toBeLessThanOrEqual(config.simulationRadius)
     expect(closestLaneDistance(state.lane, camera)).toBeLessThan(
       config.protectedRadius - state.length / 2,
     )
@@ -381,12 +384,65 @@ describe('deterministic traffic spawning', () => {
     expect(state.offscreenStoppedSteps).toBe(0)
   })
 
+  it('does not timeout-recycle a long car whose extent is still protected', () => {
+    const simulation = new TrafficSimulation({
+      count: 1,
+      seed: 12345,
+      camera,
+      prototypes,
+      config,
+    })
+    const state = simulation.vehicles[0]!
+    state.lane = { direction: 'east', line: 0 }
+    state.length = 6
+    const targetDistance = config.protectedRadius + state.length / 2 - 1e-6
+    const laneOffset = positionOnLane(state.lane, 0).z - camera.z
+    state.progress = Math.sqrt(targetDistance ** 2 - laneOffset ** 2)
+    state.previousProgress = state.progress
+    state.speed = 0
+    state.traits = Object.freeze({ ...state.traits, cruiseSpeed: 0 })
+    state.offscreenStoppedSteps = config.offscreenStoppedTimeoutSteps
+    state.previousPose = poseForVehicle(state)
+    const lifecycle = state.lifecycle
+
+    simulation.step(1 / 60, camera)
+
+    expect(state.lifecycle).toBe(lifecycle)
+    expect(state.offscreenStoppedSteps).toBe(0)
+  })
+
+  it('does not boundary-recycle a long car whose extent reaches the simulation radius', () => {
+    const lane = { direction: 'east', line: 0 } as const
+    const targetDistance = config.simulationRadius + 3 - 1e-6
+    const laneOffset = positionOnLane(lane, 0).z - camera.z
+    const state = vehicle({
+      length: 6,
+      lane,
+      progress: Math.sqrt(targetDistance ** 2 - laneOffset ** 2),
+    })
+    state.previousProgress = state.progress
+    state.previousPose = poseForVehicle(state)
+    const lifecycle = state.lifecycle
+
+    recycleTraffic({
+      vehicles: [state],
+      seed: 12345,
+      step: 0,
+      camera,
+      prototypes,
+      config,
+    })
+
+    expect(state.lifecycle).toBe(lifecycle)
+    expect(state.active).toBe(true)
+  })
+
   it('keeps a blocked slot inactive and safely retries it on a later step', () => {
     const blockedConfig: TrafficConfig = { ...config, minimumGap: 1_000 }
     const blockedVehicle = vehicle({
       id: 100,
-      previousProgress: config.simulationRadius + 1,
-      progress: config.simulationRadius + 1,
+      previousProgress: config.simulationRadius + 10,
+      progress: config.simulationRadius + 10,
       speed: 9,
       desiredSpeed: 11,
     })

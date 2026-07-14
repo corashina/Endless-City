@@ -47,6 +47,7 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
     requestAgeSteps: 0,
+    movementEntered: false,
     grantExpiresAtStep: null,
     ownedZoneKeys: [],
     plannedMovement: null,

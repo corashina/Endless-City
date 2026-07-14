@@ -82,6 +82,7 @@ const releaseOwnedZones = (
     if (reservations.get(key)?.vehicleId === vehicle.id) reservations.delete(key)
   }
   vehicle.ownedZoneKeys = []
+  vehicle.movementEntered = false
   vehicle.grantExpiresAtStep = null
   vehicle.reservationKey = null
   vehicle.clearingMovement = null
@@ -103,14 +104,34 @@ const outgoingLaneBlocked = (
 ): boolean => {
   const outgoingVehicles = vehiclesByLane.get(laneKey(request.movement.outgoingLane)) ?? []
   const requiredClearance = request.vehicle.traits.minimumGap + request.vehicle.length
+  const distinctOutgoingLane = laneKey(request.movement.incomingLane)
+    !== laneKey(request.movement.outgoingLane)
 
   for (const vehicle of outgoingVehicles) {
     if (vehicle.id === request.vehicle.id) continue
     const rearBumper = vehicle.progress - vehicle.length / 2
-    if (Math.abs(rearBumper - request.movement.exitProgress) <= requiredClearance) return true
+    if (distinctOutgoingLane) {
+      if (
+        vehicle.progress >= request.movement.exitProgress
+        && rearBumper - request.movement.exitProgress <= requiredClearance
+      ) return true
+    } else if (
+      Math.abs(rearBumper - request.movement.exitProgress) <= requiredClearance
+    ) return true
   }
 
   return false
+}
+
+const incomingLaneBlocked = (
+  request: MovementRequest,
+  vehiclesByLane: ReadonlyMap<string, readonly VehicleState[]>,
+): boolean => {
+  const incomingVehicles = vehiclesByLane.get(laneKey(request.movement.incomingLane)) ?? []
+  return incomingVehicles.some((vehicle) =>
+    vehicle.id !== request.vehicle.id
+    && vehicle.progress > request.vehicle.progress
+    && vehicle.progress - vehicle.length / 2 <= request.movement.entryProgress)
 }
 
 export function updateMovementReservations(
@@ -141,15 +162,15 @@ export function updateMovementReservations(
 
   for (const vehicle of vehicles) {
     if (vehicle.ownedZoneKeys.length === 0) {
+      vehicle.movementEntered = false
       vehicle.grantExpiresAtStep = null
       vehicle.clearingMovement = null
       continue
     }
 
-    const grantExpired = vehicle.turn === null
-      && vehicle.clearingMovement === null
+    const grantExpired = !vehicle.movementEntered
       && vehicle.grantExpiresAtStep !== null
-      && stepNumber > vehicle.grantExpiresAtStep
+      && stepNumber >= vehicle.grantExpiresAtStep
     const release = !vehicle.active
       || (
         vehicle.turn === null
@@ -213,11 +234,15 @@ export function updateMovementReservations(
   )
 
   for (const request of requests) {
-    const blocked = outgoingLaneBlocked(request, vehiclesByLane)
+    const blockedOnIncomingLane = incomingLaneBlocked(request, vehiclesByLane)
+    const blocked = blockedOnIncomingLane
+      || outgoingLaneBlocked(request, vehiclesByLane)
       || request.zoneKeys.some((key) => reservations.has(key))
 
     if (blocked) {
-      stops.set(request.vehicle.id, request.movement.entryProgress)
+      if (!blockedOnIncomingLane) {
+        stops.set(request.vehicle.id, request.movement.entryProgress)
+      }
       request.vehicle.requestAgeSteps += 1
       continue
     }
@@ -230,6 +255,7 @@ export function updateMovementReservations(
       reservations.set(key, reservation)
     }
     request.vehicle.ownedZoneKeys = [...request.zoneKeys]
+    request.vehicle.movementEntered = false
     request.vehicle.grantExpiresAtStep = stepNumber + config.reservationLifetimeSteps
     request.vehicle.requestAgeSteps = 0
   }

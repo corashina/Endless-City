@@ -108,6 +108,7 @@ describe('intersection routing', () => {
       routeDecisionIndex: 0,
       offscreenStoppedSteps: 0,
       requestAgeSteps: 0,
+      movementEntered: false,
       grantExpiresAtStep: null,
       ownedZoneKeys: [],
       plannedMovement: movement,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { stepFollowing } from '../src/traffic/following'
 import { positionOnLane } from '../src/traffic/lanes'
 import {
   movementsConflict,
@@ -60,6 +61,7 @@ const vehicleApproaching = (
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
     requestAgeSteps: 0,
+    movementEntered: false,
     grantExpiresAtStep: null,
     ownedZoneKeys: [],
     plannedMovement: movement,
@@ -121,28 +123,88 @@ describe('movement conflict zones', () => {
 
   it('does not grant a movement when its outgoing lane is blocked', () => {
     const requester = vehicleApproaching('east', 'right', { id: 1, progress: -31 })
-    const blocker = vehicleOnLane(
-      { direction: 'south', line: 0 },
-      -28,
-      { id: 2, speed: 0 },
-    )
+    const movement = requester.plannedMovement!
+    const blocker = vehicleApproaching(movement.outgoingLane.direction, 'straight', {
+      id: 2,
+      lane: movement.outgoingLane,
+      progress: movement.exitProgress + 1,
+      plannedMovement: null,
+      speed: 0,
+    })
     const result = updateMovementReservations([requester, blocker], new Map(), config, 0)
     expect(result.stops.has(requester.id)).toBe(true)
     expect(requester.ownedZoneKeys).toEqual([])
   })
 
-  it('expires an unused grant after 120 steps but retains entered zones', () => {
+  it('ignores a car upstream of a turning movement receiving-lane exit', () => {
+    const requester = vehicleApproaching('east', 'right', { id: 1, progress: -31 })
+    const movement = requester.plannedMovement!
+    const upstream = vehicleApproaching(movement.outgoingLane.direction, 'straight', {
+      id: 2,
+      lane: movement.outgoingLane,
+      progress: movement.exitProgress - 1,
+      plannedMovement: null,
+      speed: 0,
+    })
+
+    const result = updateMovementReservations([requester, upstream], new Map(), config, 0)
+
+    expect(result.stops.has(requester.id)).toBe(false)
+    expect(requester.ownedZoneKeys.length).toBeGreaterThan(0)
+  })
+
+  it('does not grant a follower blocked by a car on its incoming lane', () => {
+    const requester = vehicleApproaching('east', 'straight', { id: 1, progress: -35 })
+    const blocker = vehicleOnLane(requester.lane, -30, { id: 2, speed: 0 })
+
+    const result = updateMovementReservations([requester, blocker], new Map(), config, 0)
+
+    expect(result.stops.has(requester.id)).toBe(false)
+    expect(requester.ownedZoneKeys).toEqual([])
+    expect(requester.requestAgeSteps).toBe(1)
+  })
+
+  it('expires an unused grant at exactly step 120', () => {
     const requester = vehicleApproaching('east', 'left', { id: 1, progress: -31 })
     const reservations = new Map()
     updateMovementReservations([requester], reservations, config, 0)
-    const expired = updateMovementReservations([requester], reservations, config, 121)
+    const expired = updateMovementReservations([requester], reservations, config, 120)
     expect(requester.ownedZoneKeys).toEqual([])
+    expect(requester.movementEntered).toBe(false)
     expect(expired.stops.get(requester.id)).toBe(requester.plannedMovement!.entryProgress)
+  })
 
-    updateMovementReservations([requester], reservations, config, 122)
-    requester.turn = { movement: requester.plannedMovement!, distance: 1 }
-    updateMovementReservations([requester], reservations, config, 500)
-    expect(requester.ownedZoneKeys.length).toBeGreaterThan(0)
+  it('retains a slow long car grant from front-bumper entry through expiry', () => {
+    const holder = vehicleApproaching('east', 'straight', {
+      id: 1,
+      length: 6,
+      speed: 0.12,
+    })
+    const movement = holder.plannedMovement!
+    holder.progress = movement.entryProgress - holder.length / 2 - 0.1
+    holder.previousProgress = holder.progress
+    holder.traits = Object.freeze({
+      ...holder.traits,
+      cruiseSpeed: holder.speed,
+      maximumAcceleration: 1.4,
+    })
+    const conflicting = vehicleApproaching('north', 'straight', { id: 2 })
+    const reservations = new Map()
+
+    updateMovementReservations([holder], reservations, config, 0)
+    for (let step = 0; step < 60; step += 1) {
+      stepFollowing([holder], 1 / 60, config)
+    }
+
+    expect(holder.progress + holder.length / 2).toBeGreaterThan(movement.entryProgress)
+    expect(holder.progress).toBeLessThan(movement.entryProgress)
+
+    updateMovementReservations([holder, conflicting], reservations, config, 120)
+    updateMovementReservations([holder, conflicting], reservations, config, 121)
+
+    expect(holder.ownedZoneKeys.length).toBeGreaterThan(0)
+    expect(holder.movementEntered).toBe(true)
+    expect(conflicting.ownedZoneKeys).toEqual([])
   })
 
   it('retains departed zones until the rear bumper clears the outgoing boundary', () => {
@@ -166,6 +228,7 @@ describe('movement conflict zones', () => {
     updateMovementReservations([requester], reservations, config, 2)
 
     expect(requester.ownedZoneKeys).toEqual([])
+    expect(requester.movementEntered).toBe(false)
     expect(requester.clearingMovement).toBeNull()
   })
 

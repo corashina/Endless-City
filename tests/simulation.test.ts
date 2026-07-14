@@ -137,6 +137,7 @@ describe('traffic simulation', () => {
       config,
     })
     const state = simulation.vehicles[0]!
+    state.movementEntered = true
 
     simulation.step(0, { x: 0, z: 0 })
     const movement = state.plannedMovement
@@ -151,6 +152,7 @@ describe('traffic simulation', () => {
     simulation.step(0, { x: 0, z: 0 })
     expect(state.plannedMovement).toBe(movement)
     expect(state.routeDecisionIndex).toBe(0)
+    expect(state.movementEntered).toBe(false)
   })
 
   it('reports active, visible, moving-visible, and visible direction counts', () => {
@@ -167,6 +169,30 @@ describe('traffic simulation', () => {
     expect(diagnostics.visible).toBeGreaterThanOrEqual(18)
     expect(diagnostics.movingVisible).toBeGreaterThanOrEqual(11)
     expect(diagnostics.directions.size).toBe(4)
+  })
+
+  it('counts a long car whose extent reaches the protected radius', () => {
+    const camera = { x: 0, z: 0 }
+    const simulation = new TrafficSimulation({
+      count: 1,
+      seed: 12345,
+      camera,
+      prototypes,
+      config,
+    })
+    const state = simulation.vehicles[0]!
+    state.lane = { direction: 'east', line: 0 }
+    state.length = 6
+    const targetDistance = config.protectedRadius + state.length / 2 - 1e-6
+    const laneOffset = positionOnLane(state.lane, 0).z - camera.z
+    state.progress = Math.sqrt(targetDistance ** 2 - laneOffset ** 2)
+    state.previousProgress = state.progress
+    state.previousPose = poseForVehicle(state)
+
+    const diagnostics = simulation.counts(camera)
+
+    expect(diagnostics.visible).toBe(1)
+    expect(diagnostics.movingVisible).toBe(state.speed > config.stoppedSpeedThreshold ? 1 : 0)
   })
 
   it('completes one movement on its outgoing lane and advances the route decision once', () => {

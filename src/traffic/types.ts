@@ -66,6 +66,7 @@ export interface VehicleState {
   routeDecisionIndex: number
   offscreenStoppedSteps: number
   requestAgeSteps: number
+  movementEntered: boolean
   grantExpiresAtStep: number | null
   ownedZoneKeys: string[]
   plannedMovement: PlannedMovement | null

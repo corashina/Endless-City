@@ -29,6 +29,25 @@ interface DirectionVector {
   readonly z: number
 }
 
+export const extentIntersectsRadius = (
+  centerDistance: number,
+  length: number,
+  radius: number,
+): boolean => centerDistance - length / 2 <= radius
+
+export const vehicleExtentIntersectsRadius = (
+  vehicle: VehicleState,
+  point: { readonly x: number; readonly z: number },
+  radius: number,
+): boolean => {
+  const pose = poseForVehicle(vehicle)
+  return extentIntersectsRadius(
+    Math.hypot(pose.x - point.x, pose.z - point.z),
+    vehicle.length,
+    radius,
+  )
+}
+
 const vectorForDirection = (direction: Direction): DirectionVector => {
   switch (direction) {
     case 'east': return { x: 1, z: 0 }

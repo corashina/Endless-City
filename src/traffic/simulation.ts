@@ -5,7 +5,7 @@ import {
   updateMovementReservations,
   type MovementReservations,
 } from './movements'
-import { poseForVehicle } from './routing'
+import { poseForVehicle, vehicleExtentIntersectsRadius } from './routing'
 import {
   createTrafficPool,
   recycleTraffic,
@@ -54,8 +54,7 @@ export class TrafficSimulation {
     for (const vehicle of this.vehicles) {
       if (!vehicle.active) continue
       active += 1
-      const pose = poseForVehicle(vehicle)
-      if (Math.hypot(pose.x - camera.x, pose.z - camera.z) > this.config.protectedRadius) continue
+      if (!vehicleExtentIntersectsRadius(vehicle, camera, this.config.protectedRadius)) continue
       visible += 1
       directions.add(vehicle.lane.direction)
       if (vehicle.speed > this.config.stoppedSpeedThreshold) movingVisible += 1
@@ -70,9 +69,11 @@ export class TrafficSimulation {
         vehicle.offscreenStoppedSteps = 0
         continue
       }
-      const pose = poseForVehicle(vehicle)
-      const visible = Math.hypot(pose.x - camera.x, pose.z - camera.z)
-        <= this.config.protectedRadius
+      const visible = vehicleExtentIntersectsRadius(
+        vehicle,
+        camera,
+        this.config.protectedRadius,
+      )
       if (visible || vehicle.speed >= this.config.stoppedSpeedThreshold) {
         vehicle.offscreenStoppedSteps = 0
       } else {

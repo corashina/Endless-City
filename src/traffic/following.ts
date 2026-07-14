@@ -78,8 +78,10 @@ const nearestOutgoingVehicle = (
   vehiclesByLane: ReadonlyMap<string, readonly VehicleState[]>,
 ): VehicleState | undefined => {
   const outgoing = vehiclesByLane.get(laneKey(movement.outgoingLane)) ?? []
+  const distinctOutgoingLane = !sameLane(movement.incomingLane, movement.outgoingLane)
   return outgoing.find((candidate) =>
     candidate.id !== vehicle.id
+    && (!distinctOutgoingLane || candidate.progress >= movement.exitProgress)
     && movement.length + candidate.progress - movement.exitProgress >= routePosition)
 }
 
@@ -256,6 +258,13 @@ const advanceVehicle = (
         leader.vehicle,
       )
     }
+  }
+
+  if (
+    vehicle.ownedZoneKeys.length > 0
+    && proposedPosition + vehicle.length / 2 >= 0
+  ) {
+    vehicle.movementEntered = true
   }
 
   if (proposedPosition < 0) {

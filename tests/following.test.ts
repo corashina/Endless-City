@@ -57,6 +57,7 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
     requestAgeSteps: 0,
+    movementEntered: false,
     grantExpiresAtStep: null,
     ownedZoneKeys: [],
     plannedMovement: null,
@@ -234,6 +235,30 @@ describe('vehicle following', () => {
     stepFollowing([turning, receiving], 0.5, config)
 
     expect(routeBumperGap(turning, receiving)).toBeGreaterThanOrEqual(-1e-9)
+  })
+
+  it('does not follow an outgoing-lane car upstream of a turn exit', () => {
+    const lane = { direction: 'east', line: 1 } as const
+    const movement = planMovement(lane, -31, 'right', config.intersectionHalfExtent)
+    const approaching = vehicle({
+      id: 2,
+      lane,
+      progress: movement.entryProgress - 3,
+      speed: 5,
+      plannedMovement: movement,
+      ownedZoneKeys: ['owned-zone'],
+    })
+    const upstream = vehicle({
+      id: 1,
+      lane: movement.outgoingLane,
+      progress: movement.exitProgress - movement.length - 2,
+      speed: 0,
+      traits: { ...baseTraits, cruiseSpeed: 0 },
+    })
+
+    stepFollowing([approaching, upstream], 1 / 60, config)
+
+    expect(approaching.speed).toBeGreaterThan(5)
   })
 })
 

@@ -4,7 +4,11 @@ import { BLOCK_SIZE } from '../config'
 import { occupiedIntersectionKeys } from './intersections'
 import { laneKey, positionOnLane } from './lanes'
 import { createDriverTraits, seededUnit } from './random'
-import { headingForDirection, poseForVehicle } from './routing'
+import {
+  extentIntersectsRadius,
+  headingForDirection,
+  poseForVehicle,
+} from './routing'
 import type {
   Direction,
   DriverTraits,
@@ -280,6 +284,7 @@ const assignCandidate = (
   vehicle.routeDecisionIndex = 0
   vehicle.offscreenStoppedSteps = 0
   vehicle.requestAgeSteps = 0
+  vehicle.movementEntered = false
   vehicle.grantExpiresAtStep = null
   vehicle.ownedZoneKeys = []
   vehicle.plannedMovement = null
@@ -329,6 +334,7 @@ export const createTrafficPool = (input: CreateTrafficPoolInput): VehicleState[]
       routeDecisionIndex: 0,
       offscreenStoppedSteps: 0,
       requestAgeSteps: 0,
+      movementEntered: false,
       grantExpiresAtStep: null,
       ownedZoneKeys: [],
       plannedMovement: null,
@@ -348,11 +354,22 @@ export const recycleTraffic = (input: RecycleTrafficInput): void => {
   for (const vehicle of input.vehicles) {
     const pose = poseForVehicle(vehicle)
     const cameraDistance = Math.hypot(pose.x - input.camera.x, pose.z - input.camera.z)
+    const protectedExtent = extentIntersectsRadius(
+      cameraDistance,
+      vehicle.length,
+      input.config.protectedRadius,
+    )
+    const withinSimulationExtent = extentIntersectsRadius(
+      cameraDistance,
+      vehicle.length,
+      input.config.simulationRadius,
+    )
     const stalledOffscreen = vehicle.offscreenStoppedSteps
       >= input.config.offscreenStoppedTimeoutSteps
+      && !protectedExtent
     if (
       vehicle.active
-      && cameraDistance <= input.config.simulationRadius
+      && withinSimulationExtent
       && !stalledOffscreen
     ) {
       continue
@@ -361,6 +378,7 @@ export const recycleTraffic = (input: RecycleTrafficInput): void => {
     vehicle.active = false
     vehicle.reservationKey = null
     vehicle.requestAgeSteps = 0
+    vehicle.movementEntered = false
     vehicle.grantExpiresAtStep = null
     vehicle.ownedZoneKeys = []
 
@@ -373,8 +391,12 @@ export const recycleTraffic = (input: RecycleTrafficInput): void => {
         input.camera,
       )
       if (
-        candidateDistance <= input.config.protectedRadius
-        || candidateDistance > input.config.simulationRadius
+        extentIntersectsRadius(
+          candidateDistance,
+          candidate.prototype.length,
+          input.config.protectedRadius,
+        )
+        || candidateDistance + candidate.prototype.length / 2 > input.config.simulationRadius
       ) continue
       if (intersectsConflictZone(candidate, input.config)) continue
       if (!hasMinimumGaps(candidate, input.vehicles, input.config.minimumGap, vehicle.id)) continue
