@@ -3,6 +3,7 @@ import type { WorldPoint } from '../src/city/types'
 import { occupiedIntersectionKeys } from '../src/traffic/intersections'
 import { positionOnLane } from '../src/traffic/lanes'
 import { createDriverTraits } from '../src/traffic/random'
+import { headingForDirection, poseForVehicle } from '../src/traffic/routing'
 import { createTrafficPool, recycleTraffic } from '../src/traffic/spawning'
 import type {
   Direction,
@@ -31,14 +32,16 @@ const prototypes: readonly VehiclePrototypeMetadata[] = directions.flatMap((dire
 
 const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
   const id = overrides.id ?? 0
+  const lane = overrides.lane ?? { direction: 'east', line: 0 }
+  const progress = overrides.progress ?? 0
   return {
     id,
     prototypeId: 'east-short',
     length: 4,
-    lane: { direction: 'east', line: 0 },
+    lane,
     nativeDirection: 'east',
     previousProgress: 0,
-    progress: 0,
+    progress,
     speed: 0,
     desiredSpeed: 8,
     active: true,
@@ -47,6 +50,12 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     traits: createDriverTraits(1, id, 0),
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
+    plannedMovement: null,
+    turn: null,
+    previousPose: {
+      ...positionOnLane(lane, progress),
+      heading: headingForDirection(lane.direction),
+    },
     ...overrides,
   }
 }
@@ -100,6 +109,9 @@ describe('deterministic traffic spawning', () => {
       expect(state.traits).toEqual(createDriverTraits(12345, state.id, 0))
       expect(state.routeDecisionIndex).toBe(0)
       expect(state.offscreenStoppedSteps).toBe(0)
+      expect(state.plannedMovement).toBeNull()
+      expect(state.turn).toBeNull()
+      expect(state.previousPose).toEqual(poseForVehicle(state))
     }
   })
 
@@ -176,6 +188,9 @@ describe('deterministic traffic spawning', () => {
     expect(recycled.traits).toEqual(createDriverTraits(12345, recycled.id, 4))
     expect(recycled.routeDecisionIndex).toBe(0)
     expect(recycled.offscreenStoppedSteps).toBe(0)
+    expect(recycled.plannedMovement).toBeNull()
+    expect(recycled.turn).toBeNull()
+    expect(recycled.previousPose).toEqual(poseForVehicle(recycled))
   })
 
   it('keeps a blocked slot inactive and safely retries it on a later step', () => {

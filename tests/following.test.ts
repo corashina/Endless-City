@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { consumeFixedSteps, stepFollowing } from '../src/traffic/following'
+import { positionOnLane } from '../src/traffic/lanes'
 import { createDriverTraits } from '../src/traffic/random'
+import { headingForDirection } from '../src/traffic/routing'
 import type { TrafficConfig, VehicleState } from '../src/traffic/types'
 
 const config: TrafficConfig = {
@@ -16,14 +18,16 @@ const config: TrafficConfig = {
 
 const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
   const id = overrides.id ?? 1
+  const lane = overrides.lane ?? { direction: 'east', line: 0 }
+  const progress = overrides.progress ?? 0
   return {
     id,
     prototypeId: 'car',
     length: 4,
-    lane: { direction: 'east', line: 0 },
+    lane,
     nativeDirection: 'east',
     previousProgress: 0,
-    progress: 0,
+    progress,
     speed: 0,
     desiredSpeed: 10,
     active: true,
@@ -32,6 +36,12 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     traits: createDriverTraits(1, id, 0),
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
+    plannedMovement: null,
+    turn: null,
+    previousPose: {
+      ...positionOnLane(lane, progress),
+      heading: headingForDirection(lane.direction),
+    },
     ...overrides,
   }
 }

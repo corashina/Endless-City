@@ -2,9 +2,9 @@ import type { WorldPoint } from '../city/types'
 import { BLOCK_SIZE } from '../config'
 import type { Lane } from './types'
 
-const CROSSING_CENTER_OFFSET = -20
-const FORWARD_LANE_OFFSET = -16
-const OPPOSING_LANE_OFFSET = -23
+export const CROSSING_CENTER_OFFSET = -20
+export const FORWARD_LANE_OFFSET = -16
+export const OPPOSING_LANE_OFFSET = -23
 
 interface LaneIntersection {
   readonly key: string
@@ -31,6 +31,11 @@ export const positionOnLane = (lane: Lane, progress: number): WorldPoint => {
       return { x: lineOrigin + FORWARD_LANE_OFFSET, z: -progress }
   }
 }
+
+export const laneProgressAtPoint = (lane: Lane, point: WorldPoint): number =>
+  lane.direction === 'east' ? point.x
+    : lane.direction === 'west' ? -point.x
+      : lane.direction === 'north' ? point.z : -point.z
 
 export const nextIntersection = (lane: Lane, progress: number): LaneIntersection => {
   const travelsPositiveAxis = lane.direction === 'east' || lane.direction === 'north'

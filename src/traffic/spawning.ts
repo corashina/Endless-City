@@ -4,6 +4,7 @@ import { BLOCK_SIZE } from '../config'
 import { occupiedIntersectionKeys } from './intersections'
 import { laneKey, positionOnLane } from './lanes'
 import { createDriverTraits } from './random'
+import { headingForDirection } from './routing'
 import type {
   Direction,
   Lane,
@@ -221,6 +222,12 @@ const assignCandidate = (
   vehicle.traits = createDriverTraits(seed, vehicle.id, vehicle.lifecycle)
   vehicle.routeDecisionIndex = 0
   vehicle.offscreenStoppedSteps = 0
+  vehicle.plannedMovement = null
+  vehicle.turn = null
+  vehicle.previousPose = {
+    ...positionOnLane(candidate.lane, candidate.progress),
+    heading: headingForDirection(candidate.lane.direction),
+  }
 }
 
 export const createTrafficPool = (input: CreateTrafficPoolInput): VehicleState[] => {
@@ -260,6 +267,12 @@ export const createTrafficPool = (input: CreateTrafficPoolInput): VehicleState[]
       traits: createDriverTraits(input.seed, id, 0),
       routeDecisionIndex: 0,
       offscreenStoppedSteps: 0,
+      plannedMovement: null,
+      turn: null,
+      previousPose: {
+        ...positionOnLane(accepted.lane, accepted.progress),
+        heading: headingForDirection(accepted.lane.direction),
+      },
     })
   }
 

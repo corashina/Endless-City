@@ -23,6 +23,26 @@ export interface Lane {
   readonly line: number
 }
 
+export interface PlannedMovement {
+  readonly key: string
+  readonly intersectionKey: string
+  readonly xIndex: number
+  readonly zIndex: number
+  readonly maneuver: Maneuver
+  readonly incomingLane: Lane
+  readonly outgoingLane: Lane
+  readonly entryProgress: number
+  readonly exitProgress: number
+  readonly length: number
+  readonly samples: readonly VehiclePose[]
+  readonly sampleDistances: readonly number[]
+}
+
+export interface TurnState {
+  readonly movement: PlannedMovement
+  distance: number
+}
+
 export interface VehiclePrototypeMetadata {
   readonly id: string
   readonly length: number
@@ -45,6 +65,9 @@ export interface VehicleState {
   traits: DriverTraits
   routeDecisionIndex: number
   offscreenStoppedSteps: number
+  plannedMovement: PlannedMovement | null
+  turn: TurnState | null
+  previousPose: VehiclePose
 }
 
 export interface TrafficConfig {
