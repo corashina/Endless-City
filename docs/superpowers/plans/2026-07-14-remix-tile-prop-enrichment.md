@@ -42,7 +42,7 @@
 - Consumes: `ModuleDefinition`, `SourceCache`, `findExactNode()`, and `assertDeclaredFootprint()`.
 - Produces: catalog IDs `cube-tree`, `fir-tree`, `parked-car`, `pickup-truck`, `police-car`, `delivery-truck`, `hydrant`, `street-light`, `stop-sign`, `barrier`, and `fence`.
 
-- [ ] **Step 1: Write the failing exact-catalog test**
+- [x] **Step 1: Write the failing exact-catalog test**
 
 Add this constant and test to `tests/tile-recipes.test.ts` inside `describe('remix module catalog', ...)`:
 
@@ -70,7 +70,7 @@ it('pins the exact enrichment prop catalog', () => {
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -80,7 +80,7 @@ bun run test -- tests/tile-recipes.test.ts -t "pins the exact enrichment prop ca
 
 Expected: FAIL because the 11 IDs do not exist in `MODULE_CATALOG`.
 
-- [ ] **Step 3: Add the 11 prop definitions**
+- [x] **Step 3: Add the 11 prop definitions**
 
 Append these records after `coffee-chair` in `tools/tiles/module-catalog.ts`:
 
@@ -98,7 +98,7 @@ Append these records after `coffee-chair` in `tools/tiles/module-catalog.ts`:
   module('fence', 'house2.gltf', 'Props_Fence.obj', 'prop', 39.60, 0.16),
 ```
 
-- [ ] **Step 4: Run the catalog test and verify GREEN**
+- [x] **Step 4: Run the catalog test and verify GREEN**
 
 Run:
 
@@ -108,7 +108,7 @@ bun run test -- tests/tile-recipes.test.ts -t "pins the exact enrichment prop ca
 
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing source-node integration test**
+- [x] **Step 5: Write the failing source-node integration test**
 
 Add this import to `tests/tile-source-assets.test.ts`:
 
@@ -140,7 +140,7 @@ it('resolves every enrichment prop once within its declared footprint', async ()
 
 Also import `MODULE_CATALOG` from `../tools/tiles/module-catalog`.
 
-- [ ] **Step 6: Run the source-node test and verify GREEN**
+- [x] **Step 6: Run the source-node test and verify GREEN**
 
 Run:
 
@@ -150,7 +150,7 @@ bun run test -- tests/tile-source-assets.test.ts -t "resolves every enrichment p
 
 Expected: PASS with all 11 exact nodes resolved.
 
-- [ ] **Step 7: Run Task 1 verification and commit**
+- [x] **Step 7: Run Task 1 verification and commit**
 
 Run:
 
@@ -178,7 +178,7 @@ git commit -m "feat: catalog remix tile scenery props"
 - Consumes: the 11 catalog IDs from Task 1 and existing recipe validation.
 - Produces: 12 valid recipes with exact prop placements and five to seven props per tile.
 
-- [ ] **Step 1: Write the failing exact-layout test**
+- [x] **Step 1: Write the failing exact-layout test**
 
 Change the catalog import in `tests/tile-recipes.test.ts` to:
 
@@ -272,7 +272,7 @@ it('pins medium-density prop placements for every remix tile', () => {
 })
 ```
 
-- [ ] **Step 2: Run the exact-layout test and verify RED**
+- [x] **Step 2: Run the exact-layout test and verify RED**
 
 Run:
 
@@ -282,7 +282,7 @@ bun run test -- tests/tile-recipes.test.ts -t "pins medium-density prop placemen
 
 Expected: FAIL because the current recipes contain zero to six props and none of the new placements.
 
-- [ ] **Step 3: Replace the recipe definitions with the enriched layouts**
+- [x] **Step 3: Replace the recipe definitions with the enriched layouts**
 
 Keep the helpers and exports in `tools/tiles/tile-recipes.ts`. Replace `REMIX_TILE_RECIPES` with:
 
@@ -414,7 +414,7 @@ export const REMIX_TILE_RECIPES = Object.freeze([
 ] satisfies readonly TileRecipe[])
 ```
 
-- [ ] **Step 4: Run recipe tests and verify GREEN**
+- [x] **Step 4: Run recipe tests and verify GREEN**
 
 Run:
 
@@ -424,7 +424,7 @@ bun run test -- tests/tile-recipes.test.ts
 
 Expected: all recipe tests pass, including `validateRecipes()` and the exact prop placement test.
 
-- [ ] **Step 5: Run Task 2 verification and commit**
+- [x] **Step 5: Run Task 2 verification and commit**
 
 Run:
 
@@ -463,7 +463,7 @@ git commit -m "feat: enrich curated remix tile layouts"
 - Consumes: the Task 2 recipes and `buildAllTiles()`.
 - Produces: 12 committed enriched GLBs synchronized with the compiler and recipes.
 
-- [ ] **Step 1: Write the committed-output synchronization test**
+- [x] **Step 1: Write the committed-output synchronization test**
 
 Add this test to `tests/generated-tiles.test.ts` after the self-contained asset test:
 
@@ -478,7 +478,7 @@ it('keeps committed remix GLBs synchronized with the recipes', async () => {
 }, 60_000)
 ```
 
-- [ ] **Step 2: Run the synchronization test and verify RED**
+- [x] **Step 2: Run the synchronization test and verify RED**
 
 Run:
 
@@ -488,7 +488,7 @@ bun run test -- tests/generated-tiles.test.ts -t "keeps committed remix GLBs syn
 
 Expected: FAIL with a hash mismatch because the committed GLBs still contain the sparse recipes.
 
-- [ ] **Step 3: Regenerate the committed outputs**
+- [x] **Step 3: Regenerate the committed outputs**
 
 Run:
 
@@ -499,7 +499,7 @@ git status --short js/clusters
 
 Expected: the compiler prints 12 byte counts, all 12 `remix-*.glb` files appear modified, each file remains at or below 900 KiB, and the printed total remains at or below 6 MiB.
 
-- [ ] **Step 4: Run the synchronization and generated-asset tests**
+- [x] **Step 4: Run the synchronization and generated-asset tests**
 
 Run:
 
@@ -509,7 +509,7 @@ bun run test -- tests/generated-tiles.test.ts
 
 Expected: all generated-asset tests pass, including deterministic bytes, embedded resources, bounds, size limits, rollback, and committed synchronization.
 
-- [ ] **Step 5: Review all 12 tiles in the gallery**
+- [x] **Step 5: Review all 12 tiles in the gallery**
 
 Start Vite from the worktree:
 
@@ -531,7 +531,7 @@ Open `http://127.0.0.1:5173/tools/tiles/gallery.html` with the browser-control s
 
 If any check fails, update the exact placement in `tools/tiles/tile-recipes.ts` and its matching record in `EXPECTED_PROP_PLACEMENTS`, run the focused recipe test, regenerate, and repeat this gallery checklist. Do not loosen footprint validation or size limits.
 
-- [ ] **Step 6: Smoke-test the enriched tiles in the city**
+- [x] **Step 6: Smoke-test the enriched tiles in the city**
 
 Open `http://127.0.0.1:5173/`. Verify:
 
@@ -541,7 +541,7 @@ Open `http://127.0.0.1:5173/`. Verify:
 - roads, tile orientation, fog, shadows, pan, and zoom remain unchanged;
 - the browser console contains no warnings or errors.
 
-- [ ] **Step 7: Run the complete verification chain**
+- [x] **Step 7: Run the complete verification chain**
 
 Run from a fresh prompt after stopping Vite:
 
@@ -562,14 +562,14 @@ Expected:
 - the production build exits zero, with only the existing chunk-size advisory permitted;
 - `git diff --check` reports no whitespace error.
 
-- [ ] **Step 8: Commit the synchronized generated outputs**
+- [x] **Step 8: Commit the synchronized generated outputs**
 
 ```powershell
 git add tests/generated-tiles.test.ts js/clusters/remix-*.glb
 git commit -m "feat: bake enriched remix tile assets"
 ```
 
-- [ ] **Step 9: Confirm final branch state**
+- [x] **Step 9: Confirm final branch state**
 
 Run:
 

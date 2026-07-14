@@ -45,7 +45,13 @@ export function createGalleryScene(
   return graph
 }
 
-async function renderItem(item: GalleryItem, host: HTMLElement): Promise<void> {
+interface GalleryCard {
+  readonly item: GalleryItem
+  readonly card: HTMLElement
+  readonly canvas: HTMLCanvasElement
+}
+
+function createCard(item: GalleryItem, host: HTMLElement): GalleryCard {
   const card = document.createElement('article')
   const label = document.createElement('h2')
   const canvas = document.createElement('canvas')
@@ -54,15 +60,52 @@ async function renderItem(item: GalleryItem, host: HTMLElement): Promise<void> {
   canvas.height = 270
   card.append(label, canvas)
   host.append(card)
+  return { item, card, canvas }
+}
+
+function showError(card: HTMLElement, error: unknown): void {
+  card.dataset.state = 'error'
+  const message = document.createElement('p')
+  message.textContent = error instanceof Error ? error.message : String(error)
+  card.append(message)
+}
+
+function disposeSceneResources(scene: THREE.Scene): void {
+  const geometries = new Set<THREE.BufferGeometry>()
+  const materials = new Set<THREE.Material>()
+  const textures = new Set<THREE.Texture>()
+
+  scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return
+    geometries.add(object.geometry)
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      materials.add(material)
+      for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) textures.add(value)
+      }
+    }
+  })
+
+  for (const texture of textures) texture.dispose()
+  for (const material of materials) material.dispose()
+  for (const geometry of geometries) geometry.dispose()
+}
+
+async function renderItem(
+  entry: GalleryCard,
+  renderer: THREE.WebGLRenderer,
+  loader: GLTFLoader,
+): Promise<void> {
+  let scene: THREE.Scene | undefined
 
   try {
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-    const { scene, camera } = createGalleryScene(renderer, {
-      width: canvas.width,
-      height: canvas.height,
+    const graph = createGalleryScene(renderer, {
+      width: 360,
+      height: 270,
       devicePixelRatio: window.devicePixelRatio,
     }, window.innerWidth)
-    const gltf = await new GLTFLoader().loadAsync(item.url)
+    scene = graph.scene
+    const gltf = await loader.loadAsync(entry.item.url)
     gltf.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.castShadow = true
@@ -70,19 +113,40 @@ async function renderItem(item: GalleryItem, host: HTMLElement): Promise<void> {
       }
     })
     scene.add(gltf.scene)
-    renderer.render(scene, camera)
+    renderer.render(scene, graph.camera)
+
+    entry.canvas.width = renderer.domElement.width
+    entry.canvas.height = renderer.domElement.height
+    const context = entry.canvas.getContext('2d')
+    if (context === null) throw new Error('Unable to create gallery canvas context')
+    context.drawImage(renderer.domElement, 0, 0)
   } catch (error) {
-    card.dataset.state = 'error'
-    const message = document.createElement('p')
-    message.textContent = error instanceof Error ? error.message : String(error)
-    card.append(message)
+    showError(entry.card, error)
+  } finally {
+    if (scene !== undefined) disposeSceneResources(scene)
   }
 }
 
 async function main(): Promise<void> {
   const host = document.querySelector<HTMLElement>('#gallery')
   if (host === null) throw new Error('Missing #gallery')
-  await Promise.all(galleryItems().map((item) => renderItem(item, host)))
+  const cards = galleryItems().map((item) => createCard(item, host))
+  const renderCanvas = document.createElement('canvas')
+  let renderer: THREE.WebGLRenderer
+
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: renderCanvas, antialias: true })
+  } catch (error) {
+    for (const { card } of cards) showError(card, error)
+    return
+  }
+
+  const loader = new GLTFLoader()
+  try {
+    for (const card of cards) await renderItem(card, renderer, loader)
+  } finally {
+    renderer.dispose()
+  }
 }
 
 if (typeof document !== 'undefined') void main()
