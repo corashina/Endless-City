@@ -75,9 +75,15 @@ Crossing centers repeat every 60 units with the road asset’s `-20` offset. `sr
 
 Every traffic profile includes all four directions. `src/rendering/scene.ts` uses modern sRGB output, capped pixel ratio, fog, and profile-sized soft shadows.
 
+## Bounded atmosphere
+
+`src/rendering/cloud-layer.ts` owns exactly five low-poly cloud groups. All lobes share one geometry and one material and do not participate in shadow maps. Each cloud keeps a logical X/Z position; the layer wraps clouds beyond 210 units to the opposite 190-unit edge and projects them with `logical - render origin`. Long-distance travel therefore retains sparse parallax clouds without unbounded allocation or floating-point growth.
+
+`src/rendering/scene.ts` configures a shared blue-grey background/fog palette, warm directional sunlight, stronger hemisphere fill, and MapControls damping. The fixed 36-degree polar angle, 45-degree azimuth, input mappings, and distance limits remain unchanged.
+
 ## Error and application lifecycle
 
-`src/app.ts` owns startup, the animation frame, visibility/resize listeners, pause/resume, and disposal. Loading progress flows from the asset catalog to `src/ui/overlay.ts`. Optional asset failures degrade to existing fallbacks; required road failure, WebGL creation failure, or a frame exception stops the owned loop and shows a concise error with retry. WebGL context loss pauses the loop and exposes a restoring state; restoration resumes the existing application. Default diagnostics are hidden, while `?debug=1` enables the FPS output.
+`src/app.ts` owns startup, the animation frame, visibility/resize listeners, pause/resume, and disposal. Loading progress flows from the asset catalog to `src/ui/overlay.ts`. Optional asset failures degrade to existing fallbacks; required road failure, WebGL creation failure, or a frame exception stops the owned loop and shows a concise error with retry. WebGL context loss pauses the loop and exposes a restoring state; restoration resumes the existing application. Loading progress, WebGL recovery, and fatal errors use the blocking status overlay. The title, help, and visible performance controls are absent, so the ready state contains only the canvas; `?debug=1` keeps its programmatic acceptance hook without adding ordinary UI.
 
 ## Acceptance diagnostics
 

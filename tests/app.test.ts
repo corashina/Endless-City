@@ -240,6 +240,40 @@ describe('owned application lifecycle', () => {
     expect(harness.requestAnimationFrame).toHaveBeenCalledTimes(2)
     harness.handle.dispose()
   })
+
+  it('updates clouds from camera state and disposes them exactly once', async () => {
+    const canvas = document.createElement('canvas')
+    const scene = createRunnableScene()
+    const cloudLayer = { update: vi.fn(), dispose: vi.fn() }
+    const createCloudLayer = vi.fn(() => cloudLayer)
+    let frame: FrameRequestCallback | undefined
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frame = callback
+        return 101
+      })
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+
+    const handle = await startApp({ canvas }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+      createCloudLayer,
+    })
+    frame?.(0)
+
+    expect(createCloudLayer).toHaveBeenCalledWith(scene.context.scene)
+    expect(cloudLayer.update).toHaveBeenCalledWith(
+      { x: 10, z: 10 },
+      { x: 0, z: 0 },
+    )
+
+    handle.dispose()
+    handle.dispose()
+    expect(cloudLayer.dispose).toHaveBeenCalledOnce()
+    requestAnimationFrame.mockRestore()
+    cancelAnimationFrame.mockRestore()
+  })
 })
 
 describe('startApp setup cleanup', () => {

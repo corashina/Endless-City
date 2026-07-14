@@ -9,6 +9,10 @@ import {
   WORLD_SEED,
 } from './config'
 import { CityView } from './rendering/city-view'
+import {
+  createCloudLayer as createCloudLayerView,
+  type CloudLayerController,
+} from './rendering/cloud-layer'
 import { loadAssetCatalog as loadAssets, type AssetCatalog } from './rendering/assets'
 import { chooseQualityProfile } from './rendering/quality'
 import { createScene as createSceneContext } from './rendering/scene'
@@ -76,6 +80,7 @@ export interface OwnedLoopInput {
 export interface StartAppDependencies {
   readonly createScene: typeof createSceneContext
   readonly loadAssetCatalog: typeof loadAssets
+  readonly createCloudLayer: typeof createCloudLayerView
 }
 
 const centerGridCell = (x: number, z: number): GridCoordinate => ({
@@ -230,6 +235,7 @@ export async function startApp(
   let contextDisposed = false
   let assetsDisposed = false
   let assets: AssetCatalog | undefined
+  let cloudLayer: CloudLayerController | undefined
   let bootstrapDisposed = false
   let removeAcceptanceHook: () => void = () => undefined
   let recoveryListenersRemoved = false
@@ -239,15 +245,21 @@ export async function startApp(
     context.dispose()
   }
   const disposeResources = (): void => {
-    if (assets === undefined || assetsDisposed) {
-      disposeContext()
-      return
-    }
-    assetsDisposed = true
+    const currentCloudLayer = cloudLayer
+    cloudLayer = undefined
     try {
-      assets?.dispose()
+      currentCloudLayer?.dispose()
     } finally {
-      disposeContext()
+      if (assets === undefined || assetsDisposed) {
+        disposeContext()
+        return
+      }
+      assetsDisposed = true
+      try {
+        assets.dispose()
+      } finally {
+        disposeContext()
+      }
     }
   }
   let handle: AppHandle | undefined
@@ -390,6 +402,8 @@ export async function startApp(
       return disposedHandle
     }
     const cityView = new CityView(context.scene, loadedAssets, profile)
+    cloudLayer = (dependencies.createCloudLayer ?? createCloudLayerView)(context.scene)
+    const activeCloudLayer = cloudLayer
     const traffic = loadedAssets.vehicleMetadata.length === 0
       ? undefined
       : new TrafficSimulation({
@@ -467,6 +481,7 @@ export async function startApp(
 
       const cameraState = cameraController.update()
       currentCameraState = cameraState
+      activeCloudLayer.update(cameraState.logicalCamera, cameraState.origin)
       cityView.update(
         centerGridCell(cameraState.logicalCamera.x, cameraState.logicalCamera.z),
         cameraState.origin,

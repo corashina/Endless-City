@@ -56,7 +56,7 @@
 - Consumes: existing `OverlayController.showLoading`, `showReady`, `showError`, `showContextLost`, and `dispose` calls from `src/app.ts`.
 - Produces: `OverlayOptions { retry?: () => void }` and an `OverlayController` with only those five public methods.
 
-- [ ] **Step 1: Write the failing static-interface and reduced-overlay tests**
+- [x] **Step 1: Write the failing static-interface and reduced-overlay tests**
 
 Create `tests/interface.test.ts`:
 
@@ -173,7 +173,7 @@ describe('OverlayController', () => {
 
 In `tests/app.test.ts`, remove `updateFps: vi.fn()` from `createOverlayHarness()` so the harness expresses the reduced contract.
 
-- [ ] **Step 2: Run focused tests to verify RED**
+- [x] **Step 2: Run focused tests to verify RED**
 
 Run:
 
@@ -183,7 +183,7 @@ bun run test -- tests/interface.test.ts tests/overlay.test.ts tests/app.test.ts
 
 Expected: `tests/interface.test.ts` fails because ordinary interface IDs remain, and reduced overlay fixtures fail because `OverlayController` still requires help/statistics/FPS elements.
 
-- [ ] **Step 3: Implement the reduced HTML, overlay, bootstrap, and CSS**
+- [x] **Step 3: Implement the reduced HTML, overlay, bootstrap, and CSS**
 
 Replace the `<body>` contents in `index.html` with:
 
@@ -412,7 +412,7 @@ body {
 .retry-button:active { transform: translateY(1px); }
 ```
 
-- [ ] **Step 4: Run focused tests to verify GREEN**
+- [x] **Step 4: Run focused tests to verify GREEN**
 
 Run:
 
@@ -422,7 +422,7 @@ bun run test -- tests/interface.test.ts tests/overlay.test.ts tests/app.test.ts
 
 Expected: all three test files pass; no overlay harness requires `updateFps`.
 
-- [ ] **Step 5: Commit the scene-only interface**
+- [x] **Step 5: Commit the scene-only interface**
 
 ```powershell
 git add index.html style.css src/main.ts src/ui/overlay.ts src/app.ts tests/interface.test.ts tests/overlay.test.ts tests/app.test.ts
@@ -440,7 +440,7 @@ git commit -m "feat: reduce interface to scene status"
 - Consumes: existing `configureLockedLegacyCamera(controls)` and `createSceneGraph(profile, aspect)`.
 - Produces: the same interfaces with `enableDamping`, `dampingFactor`, and the approved atmospheric values.
 
-- [ ] **Step 1: Extend controls and scene-graph tests**
+- [x] **Step 1: Extend controls and scene-graph tests**
 
 In the first `configureLockedLegacyCamera` test in `tests/scene-controls.test.ts`, add:
 
@@ -464,7 +464,7 @@ expect(graph.hemisphereLight.intensity).toBe(1.25)
 
 Keep the existing camera, light-count, shadow-map, and `[-180, 180]` shadow-camera assertions in that test.
 
-- [ ] **Step 2: Run focused tests to verify RED**
+- [x] **Step 2: Run focused tests to verify RED**
 
 Run:
 
@@ -474,7 +474,7 @@ bun run test -- tests/scene-controls.test.ts tests/city-view.test.ts
 
 Expected: failures show damping is disabled, the background/fog are black, and old neutral light values remain.
 
-- [ ] **Step 3: Configure damping and daylight**
+- [x] **Step 3: Configure damping and daylight**
 
 Add the two damping properties to `LockedCameraControls` in `src/rendering/scene.ts`:
 
@@ -510,7 +510,7 @@ Keep the existing directional shadow configuration, then replace hemisphere-ligh
 const hemisphereLight = new THREE.HemisphereLight(0xe7f2ff, 0xb9aa8f, 1.25)
 ```
 
-- [ ] **Step 4: Run focused tests to verify GREEN**
+- [x] **Step 4: Run focused tests to verify GREEN**
 
 Run:
 
@@ -520,7 +520,7 @@ bun run test -- tests/scene-controls.test.ts tests/city-view.test.ts
 
 Expected: both files pass, including all pre-existing locked-angle, zoom-clamp, viewport, and shadow tests.
 
-- [ ] **Step 5: Commit damping and daylight**
+- [x] **Step 5: Commit damping and daylight**
 
 ```powershell
 git add src/rendering/scene.ts tests/scene-controls.test.ts tests/city-view.test.ts
@@ -537,7 +537,7 @@ git commit -m "feat: smooth controls and brighten daylight"
 - Consumes: `THREE.Scene`, `WorldPoint`, and the render-origin equation `local = logical - origin`.
 - Produces: `CLOUD_COUNT`, `CLOUD_CLEAR_RADIUS`, `CLOUD_WRAP_RADIUS`, `wrapCloudPosition(position, camera, index)`, `CloudLayerController`, `CloudLayer`, and `createCloudLayer(scene)`.
 
-- [ ] **Step 1: Write cloud geometry, wrapping, projection, and disposal tests**
+- [x] **Step 1: Write cloud geometry, wrapping, projection, and disposal tests**
 
 Create `tests/cloud-layer.test.ts`:
 
@@ -617,7 +617,7 @@ describe('CloudLayer', () => {
 })
 ```
 
-- [ ] **Step 2: Run the focused test to verify RED**
+- [x] **Step 2: Run the focused test to verify RED**
 
 Run:
 
@@ -627,7 +627,7 @@ bun run test -- tests/cloud-layer.test.ts
 
 Expected: FAIL because `src/rendering/cloud-layer.ts` does not exist.
 
-- [ ] **Step 3: Implement the fixed cloud pool**
+- [x] **Step 3: Implement the fixed cloud pool**
 
 Create `src/rendering/cloud-layer.ts`:
 
@@ -741,7 +741,7 @@ export const createCloudLayer = (scene: THREE.Scene): CloudLayerController =>
   new CloudLayer(scene)
 ```
 
-- [ ] **Step 4: Run focused tests to verify GREEN**
+- [x] **Step 4: Run focused tests to verify GREEN**
 
 Run:
 
@@ -751,7 +751,7 @@ bun run test -- tests/cloud-layer.test.ts
 
 Expected: all cloud tests pass with 5 groups, 18 meshes, one geometry, one material, correct wrapping/projection, and once-only disposal.
 
-- [ ] **Step 5: Commit the cloud layer**
+- [x] **Step 5: Commit the cloud layer**
 
 ```powershell
 git add src/rendering/cloud-layer.ts tests/cloud-layer.test.ts
@@ -771,7 +771,7 @@ git commit -m "feat: add bounded low-poly clouds"
 - Consumes: `createCloudLayer(scene): CloudLayerController`, `CloudLayerController.update(logicalCamera, origin)`, and `dispose()` from Task 3.
 - Produces: a `StartAppDependencies.createCloudLayer` seam and production per-frame/lifecycle integration.
 
-- [ ] **Step 1: Write the failing application integration test**
+- [x] **Step 1: Write the failing application integration test**
 
 Add this test inside `describe('owned application lifecycle', ...)` in `tests/app.test.ts`:
 
@@ -811,7 +811,7 @@ it('updates clouds from camera state and disposes them exactly once', async () =
 })
 ```
 
-- [ ] **Step 2: Run the integration test to verify RED**
+- [x] **Step 2: Run the integration test to verify RED**
 
 Run:
 
@@ -821,7 +821,7 @@ bun run test -- tests/app.test.ts
 
 Expected: TypeScript/Vitest collection fails because `createCloudLayer` is not yet a `StartAppDependencies` property.
 
-- [ ] **Step 3: Wire cloud creation, frame updates, and disposal into the app**
+- [x] **Step 3: Wire cloud creation, frame updates, and disposal into the app**
 
 Add this import in `src/app.ts`:
 
@@ -887,7 +887,7 @@ activeCloudLayer.update(cameraState.logicalCamera, cameraState.origin)
 
 Keep `cloudLayer` itself for outer lifecycle cleanup; `activeCloudLayer` is the non-optional frame-loop reference.
 
-- [ ] **Step 4: Run integration and full automated verification**
+- [x] **Step 4: Run integration and full automated verification**
 
 Run:
 
@@ -901,7 +901,7 @@ git diff --check
 
 Expected: focused tests pass; typecheck passes; all test files pass; production build succeeds with only the established chunk-size advisory; `git diff --check` prints nothing.
 
-- [ ] **Step 5: Update user and architecture documentation**
+- [x] **Step 5: Update user and architecture documentation**
 
 Replace the `README.md` Explore list with:
 
@@ -962,7 +962,7 @@ Use browser automation at desktop `1440×900` and mobile `390×844` to verify:
 
 Stop the development server after verification.
 
-- [ ] **Step 7: Record evidence and commit the integration**
+- [x] **Step 7: Record evidence and commit the integration**
 
 Mark completed checkboxes in this plan, then run:
 
