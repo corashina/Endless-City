@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -69,5 +69,38 @@ describe('generated remix tiles', () => {
     for (const id of REMIX_TILE_IDS) {
       expect(await hash(join(first, `${id}.glb`))).toBe(await hash(join(second, `${id}.glb`)))
     }
+  }, 60_000)
+
+  it('restores the complete prior output set when replacement fails', async () => {
+    const outputDir = await makeOutput()
+    const previousHashes = new Map<string, string>()
+    for (const id of REMIX_TILE_IDS) {
+      const path = join(outputDir, `${id}.glb`)
+      await writeFile(path, `previous-${id}`)
+      previousHashes.set(id, await hash(path))
+    }
+
+    let failureInjected = false
+    await expect(buildAllTiles({
+      projectRoot: resolve('.'),
+      outputDir,
+      fileOperations: {
+        rename: async (from, to) => {
+          if (!failureInjected
+            && from.includes('.remix-replacement-')
+            && to.endsWith('remix-commercial-market.glb')) {
+            failureInjected = true
+            throw new Error('injected replacement failure')
+          }
+          await rename(from, to)
+        },
+      },
+    })).rejects.toThrow('injected replacement failure')
+
+    expect(failureInjected).toBe(true)
+    for (const id of REMIX_TILE_IDS) {
+      expect(await hash(join(outputDir, `${id}.glb`))).toBe(previousHashes.get(id))
+    }
+    expect((await readdir(outputDir)).sort()).toEqual(REMIX_TILE_IDS.map((id) => `${id}.glb`).sort())
   }, 60_000)
 })

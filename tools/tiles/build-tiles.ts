@@ -1,6 +1,6 @@
 import { Document, NodeIO } from '@gltf-transform/core'
 import { dedup, getBounds, prune, unpartition } from '@gltf-transform/functions'
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -11,7 +11,14 @@ import { validateRecipes } from './validate-recipes'
 import { copyPlacedModule, SourceCache } from './source-assets'
 import type { TileRecipe } from './types'
 
-export interface BuildOptions { readonly projectRoot: string; readonly outputDir: string }
+export interface ReplacementFileOperations {
+  readonly rename: (from: string, to: string) => Promise<void>
+}
+export interface BuildOptions {
+  readonly projectRoot: string
+  readonly outputDir: string
+  readonly fileOperations?: ReplacementFileOperations
+}
 export interface BuildOutput { readonly id: string; readonly path: string; readonly bytes: number }
 
 const io = new NodeIO()
@@ -51,6 +58,62 @@ export async function buildTile(
   return io.writeBinary(output)
 }
 
+const isNotFound = (error: unknown): boolean =>
+  (error as NodeJS.ErrnoException).code === 'ENOENT'
+
+async function replaceOutputSet(
+  staged: readonly BuildOutput[],
+  outputDir: string,
+  fileOperations: ReplacementFileOperations,
+): Promise<BuildOutput[]> {
+  const replacementDir = await mkdtemp(join(outputDir, '.remix-replacement-'))
+  const backupDir = await mkdtemp(join(outputDir, '.remix-backup-'))
+  const backedUp = new Set<string>()
+  const installed = new Set<string>()
+  try {
+    for (const output of staged) {
+      await copyFile(output.path, join(replacementDir, basename(output.path)))
+    }
+    try {
+      for (const output of staged) {
+        const filename = basename(output.path)
+        const finalPath = join(outputDir, filename)
+        try {
+          await fileOperations.rename(finalPath, join(backupDir, filename))
+          backedUp.add(output.id)
+        } catch (error) {
+          if (!isNotFound(error)) throw error
+        }
+      }
+      for (const output of staged) {
+        const filename = basename(output.path)
+        const finalPath = join(outputDir, filename)
+        await fileOperations.rename(join(replacementDir, filename), finalPath)
+        installed.add(output.id)
+      }
+    } catch (replacementError) {
+      for (const output of [...staged].reverse()) {
+        const filename = basename(output.path)
+        const finalPath = join(outputDir, filename)
+        if (installed.has(output.id)) await rm(finalPath, { force: true })
+        if (backedUp.has(output.id)) {
+          await fileOperations.rename(join(backupDir, filename), finalPath)
+        }
+      }
+      throw replacementError
+    }
+    return staged.map((output) => ({
+      ...output,
+      path: join(outputDir, basename(output.path)),
+    }))
+  } finally {
+    await Promise.all([
+      rm(replacementDir, { recursive: true, force: true }),
+      rm(backupDir, { recursive: true, force: true }),
+    ])
+  }
+}
+
 export async function buildAllTiles(options: BuildOptions): Promise<BuildOutput[]> {
   validateRecipes(REMIX_TILE_RECIPES, MODULE_CATALOG)
   await mkdir(options.outputDir, { recursive: true })
@@ -70,13 +133,7 @@ export async function buildAllTiles(options: BuildOptions): Promise<BuildOutput[
     for (const output of staged) {
       if (output.bytes > 900 * 1024) throw new Error(`${output.id} exceeds 900 KiB: ${output.bytes} bytes`)
     }
-    const committed: BuildOutput[] = []
-    for (const output of staged) {
-      const finalPath = join(options.outputDir, basename(output.path))
-      await copyFile(output.path, finalPath)
-      committed.push({ ...output, path: finalPath })
-    }
-    return committed
+    return await replaceOutputSet(staged, options.outputDir, options.fileOperations ?? { rename })
   } finally {
     await rm(temporary, { recursive: true, force: true })
   }
