@@ -23,7 +23,7 @@ export interface BuildOutput { readonly id: string; readonly path: string; reado
 
 const io = new NodeIO()
 
-async function validateStagedGlb(path: string, id: string): Promise<void> {
+export async function validateStagedGlb(path: string, id: string): Promise<void> {
   const document = await io.read(path)
   const scene = document.getRoot().listScenes()[0]
   const root = scene?.listChildren()[0]
@@ -33,7 +33,11 @@ async function validateStagedGlb(path: string, id: string): Promise<void> {
   const bounds = getBounds(root)
   if (bounds.min[0] < PLOT_MIN || bounds.max[0] > PLOT_MAX
     || bounds.min[2] < PLOT_MIN || bounds.max[2] > PLOT_MAX) {
-    throw new Error(`${id}: generated geometry is outside the plot`)
+    throw new Error(
+      `${id}: generated geometry bounds x=[${bounds.min[0].toFixed(2)}, ${bounds.max[0].toFixed(2)}], `
+      + `z=[${bounds.min[2].toFixed(2)}, ${bounds.max[2].toFixed(2)}] `
+      + `exceed allowed [${PLOT_MIN}, ${PLOT_MAX}] envelope`,
+    )
   }
   for (const texture of document.getRoot().listTextures()) {
     if (texture.getImage() === null) throw new Error(`${id}: texture ${texture.getName()} has no embedded image`)
@@ -51,8 +55,16 @@ export async function buildTile(
     const placement = recipe.placements[index]!
     const definition = MODULES_BY_ID.get(placement.moduleId)
     if (definition === undefined) throw new Error(`${recipe.id}: unknown module ${placement.moduleId}`)
-    const source = await sources.load(definition.source)
-    copyPlacedModule(output, tileRoot, source, definition, placement, index)
+    try {
+      const source = await sources.load(definition.source)
+      copyPlacedModule(output, tileRoot, source, definition, placement, index)
+    } catch (error) {
+      throw new Error(
+        `${recipe.id}: failed to extract module ${definition.id} from ${definition.source} `
+        + `node ${definition.nodeName}`,
+        { cause: error },
+      )
+    }
   }
   await output.transform(dedup(), prune({ keepExtras: true }), unpartition())
   return io.writeBinary(output)

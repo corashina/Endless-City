@@ -37,11 +37,16 @@ const PROHIBITED_CODEC_EXTENSIONS = new Set([
   'KHR_texture_basisu',
 ])
 
-const readExtensionsUsed = async (path: string): Promise<string[]> => {
+interface RawGlbJson {
+  readonly extensionsUsed?: string[]
+  readonly buffers?: readonly { readonly uri?: string }[]
+  readonly images?: readonly { readonly uri?: string }[]
+}
+
+const readGlbJson = async (path: string): Promise<RawGlbJson> => {
   const binary = await readFile(path)
   const jsonLength = binary.readUInt32LE(12)
-  const json = JSON.parse(binary.subarray(20, 20 + jsonLength).toString('utf8')) as { extensionsUsed?: string[] }
-  return json.extensionsUsed ?? []
+  return JSON.parse(binary.subarray(20, 20 + jsonLength).toString('utf8')) as RawGlbJson
 }
 
 describe('generated remix tiles', () => {
@@ -60,7 +65,12 @@ describe('generated remix tiles', () => {
       const scene = document.getRoot().listScenes()[0]!
       const root = scene.listChildren()[0]!
       const bounds = getBounds(root)
-      expect((await readExtensionsUsed(file)).filter((name) => PROHIBITED_CODEC_EXTENSIONS.has(name))).toEqual([])
+      const raw = await readGlbJson(file)
+      expect((raw.extensionsUsed ?? []).filter((name) => PROHIBITED_CODEC_EXTENSIONS.has(name))).toEqual([])
+      expect(raw.buffers?.length).toBeGreaterThan(0)
+      expect(raw.images?.length).toBeGreaterThan(0)
+      for (const buffer of raw.buffers ?? []) expect(buffer).not.toHaveProperty('uri')
+      for (const image of raw.images ?? []) expect(image).not.toHaveProperty('uri')
       expect(document.getRoot().listMeshes().length).toBeGreaterThan(0)
       expect(document.getRoot().listTextures().every((texture) => texture.getImage() !== null)).toBe(true)
       expect(bounds.min[0]).toBeGreaterThanOrEqual(-10)
