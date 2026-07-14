@@ -82,6 +82,15 @@ describe('generated remix tiles', () => {
     expect((await readdir(outputDir)).sort()).toEqual(REMIX_TILE_IDS.map((id) => `${id}.glb`).sort())
   }, 60_000)
 
+  it('keeps committed remix GLBs synchronized with the recipes', async () => {
+    const outputDir = await makeOutput()
+    await buildAllTiles({ projectRoot: resolve('.'), outputDir })
+    for (const id of REMIX_TILE_IDS) {
+      expect(await hash(join(outputDir, `${id}.glb`)))
+        .toBe(await hash(resolve('js', 'clusters', `${id}.glb`)))
+    }
+  }, 60_000)
+
   it('produces byte-identical files from the same inputs', async () => {
     const first = await makeOutput()
     const second = await makeOutput()
