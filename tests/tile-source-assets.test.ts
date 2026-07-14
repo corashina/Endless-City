@@ -1,0 +1,53 @@
+import { Accessor, Document } from '@gltf-transform/core'
+import { describe, expect, it } from 'vitest'
+import {
+  copyPlacedModule,
+  findExactNode,
+  measureModuleFootprint,
+} from '../tools/tiles/source-assets'
+import type { ModuleDefinition } from '../tools/tiles/types'
+
+const definition: ModuleDefinition = {
+  id: 'fixture', source: 'fixture.gltf', nodeName: 'Fixture', kind: 'building',
+  anchor: 'bottom-center', footprint: { width: 4, depth: 6 }, allowedRotations: [0, 1, 2, 3],
+}
+
+const createSource = (): Document => {
+  const document = new Document()
+  const buffer = document.createBuffer()
+  const positions = document.createAccessor().setType(Accessor.Type.VEC3!).setArray(new Float32Array([
+    -2, 0, -3, 2, 0, -3, 2, 5, 3, -2, 5, 3,
+  ])).setBuffer(buffer)
+  const primitive = document.createPrimitive().setAttribute('POSITION', positions)
+  const mesh = document.createMesh('FixtureMesh').addPrimitive(primitive)
+  const node = document.createNode('Fixture').setMesh(mesh).setTranslation([10, 0, 20])
+  document.createScene('Source').addChild(node)
+  return document
+}
+
+describe('source asset extraction', () => {
+  it('requires one exact node name', () => {
+    const source = createSource()
+    expect(findExactNode(source, definition).getName()).toBe('Fixture')
+    source.createNode('Fixture')
+    expect(() => findExactNode(source, definition)).toThrow('fixture.gltf: expected one node named Fixture, found 2')
+  })
+
+  it('measures the source world-space footprint', () => {
+    expect(measureModuleFootprint(findExactNode(createSource(), definition)))
+      .toEqual({ width: 4, depth: 6 })
+  })
+
+  it('copies, bottom-centers, rotates, and places a module', () => {
+    const output = new Document()
+    const root = output.createNode('tile-root')
+    output.createScene('tile').addChild(root)
+    copyPlacedModule(output, root, createSource(), definition, {
+      moduleId: 'fixture', x: 8, z: 12, rotation: 1,
+    }, 0)
+    const placement = root.listChildren()[0]!
+    expect(placement.getTranslation()).toEqual([8, 0, 12])
+    expect(placement.getRotation()).toEqual([0, Math.SQRT1_2, 0, Math.SQRT1_2])
+    expect(placement.listChildren()).toHaveLength(1)
+  })
+})
