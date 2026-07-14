@@ -60,6 +60,7 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     ownedZoneKeys: [],
     plannedMovement: null,
     turn: null,
+    clearingMovement: null,
     previousPose: {
       ...positionOnLane(lane, progress),
       heading: headingForDirection(lane.direction),

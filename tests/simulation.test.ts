@@ -3,6 +3,7 @@ import { BLOCK_SIZE, FIXED_STEP_SECONDS } from '../src/config'
 import { occupiedIntersectionKeys } from '../src/traffic/intersections'
 import { positionOnLane } from '../src/traffic/lanes'
 import { movementConflictZones } from '../src/traffic/movements'
+import { movementPoseAt, planMovement } from '../src/traffic/routing'
 import { TrafficSimulation } from '../src/traffic/simulation'
 import type {
   Direction,
@@ -37,7 +38,7 @@ const assertNoFollowingOverlap = (vehicles: readonly VehicleState[]): void => {
   const laneGroups = new Map<string, VehicleState[]>()
 
   for (const vehicle of vehicles) {
-    if (!vehicle.active) continue
+    if (!vehicle.active || vehicle.turn !== null) continue
     const key = `${vehicle.lane.direction}:${vehicle.lane.line}`
     const lane = laneGroups.get(key)
     if (lane === undefined) laneGroups.set(key, [vehicle])
@@ -112,6 +113,44 @@ describe('traffic simulation', () => {
 
     expect(simulation.vehicles.map((vehicle) => vehicle.previousProgress)).toEqual(startingProgress)
     expect(simulation.reservations).toBeInstanceOf(Map)
+  })
+
+  it('completes one movement on its outgoing lane and advances the route decision once', () => {
+    const simulation = new TrafficSimulation({
+      count: 1,
+      seed: 12345,
+      camera: { x: 0, z: 0 },
+      prototypes,
+      config,
+    })
+    const state = simulation.vehicles[0]!
+    const movement = planMovement(
+      { direction: 'east', line: 1 },
+      -31,
+      'right',
+      config.intersectionHalfExtent,
+    )
+    const startingDistance = movement.length - 0.05
+    state.lane = movement.incomingLane
+    state.progress = movement.entryProgress
+    state.previousProgress = state.progress
+    state.speed = 6
+    state.plannedMovement = movement
+    state.turn = { movement, distance: startingDistance }
+    state.routeDecisionIndex = 0
+    state.previousPose = movementPoseAt(movement, startingDistance)
+
+    simulation.step(FIXED_STEP_SECONDS, { x: 0, z: 0 })
+
+    expect(state.previousPose).toEqual(movementPoseAt(movement, startingDistance))
+    expect(state.turn).toBeNull()
+    expect(state.plannedMovement).toBeNull()
+    expect(state.lane).toEqual(movement.outgoingLane)
+    expect(state.progress).toBeGreaterThan(movement.exitProgress)
+    expect(state.routeDecisionIndex).toBe(1)
+
+    simulation.step(FIXED_STEP_SECONDS, { x: 0, z: 0 })
+    expect(state.routeDecisionIndex).toBe(1)
   })
 
   it('stays bounded, finite, conflict-free, and deterministic across 36,000 steps', () => {

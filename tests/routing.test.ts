@@ -112,6 +112,7 @@ describe('intersection routing', () => {
       ownedZoneKeys: [],
       plannedMovement: movement,
       turn: null,
+      clearingMovement: null,
       previousPose: { x: -31, z: -16, heading: headingForDirection('east') },
     }
 

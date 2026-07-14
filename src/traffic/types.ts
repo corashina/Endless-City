@@ -70,6 +70,7 @@ export interface VehicleState {
   ownedZoneKeys: string[]
   plannedMovement: PlannedMovement | null
   turn: TurnState | null
+  clearingMovement: PlannedMovement | null
   previousPose: VehiclePose
 }
 

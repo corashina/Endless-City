@@ -84,11 +84,17 @@ const releaseOwnedZones = (
   vehicle.ownedZoneKeys = []
   vehicle.grantExpiresAtStep = null
   vehicle.reservationKey = null
+  vehicle.clearingMovement = null
 }
 
 const enteredMovementCleared = (vehicle: VehicleState): boolean => {
-  if (vehicle.turn === null) return false
-  return vehicle.turn.distance - vehicle.length / 2 > vehicle.turn.movement.length
+  if (vehicle.turn !== null) {
+    return vehicle.turn.distance - vehicle.length / 2 > vehicle.turn.movement.length
+  }
+  if (vehicle.clearingMovement !== null) {
+    return vehicle.progress - vehicle.length / 2 > vehicle.clearingMovement.exitProgress
+  }
+  return false
 }
 
 const outgoingLaneBlocked = (
@@ -136,14 +142,20 @@ export function updateMovementReservations(
   for (const vehicle of vehicles) {
     if (vehicle.ownedZoneKeys.length === 0) {
       vehicle.grantExpiresAtStep = null
+      vehicle.clearingMovement = null
       continue
     }
 
     const grantExpired = vehicle.turn === null
+      && vehicle.clearingMovement === null
       && vehicle.grantExpiresAtStep !== null
       && stepNumber > vehicle.grantExpiresAtStep
     const release = !vehicle.active
-      || (vehicle.turn === null && vehicle.plannedMovement === null)
+      || (
+        vehicle.turn === null
+        && vehicle.plannedMovement === null
+        && vehicle.clearingMovement === null
+      )
       || grantExpired
       || enteredMovementCleared(vehicle)
 

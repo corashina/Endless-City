@@ -64,6 +64,7 @@ const vehicleApproaching = (
     ownedZoneKeys: [],
     plannedMovement: movement,
     turn: null,
+    clearingMovement: null,
     previousPose: {
       ...positionOnLane(lane, progress),
       heading: headingForDirection(lane.direction),
@@ -142,6 +143,30 @@ describe('movement conflict zones', () => {
     requester.turn = { movement: requester.plannedMovement!, distance: 1 }
     updateMovementReservations([requester], reservations, config, 500)
     expect(requester.ownedZoneKeys.length).toBeGreaterThan(0)
+  })
+
+  it('retains departed zones until the rear bumper clears the outgoing boundary', () => {
+    const requester = vehicleApproaching('east', 'right', { id: 1, progress: -31 })
+    const reservations = new Map()
+    updateMovementReservations([requester], reservations, config, 0)
+    const movement = requester.plannedMovement!
+
+    requester.lane = movement.outgoingLane
+    requester.progress = movement.exitProgress + requester.length / 2
+    requester.turn = null
+    requester.plannedMovement = null
+    requester.clearingMovement = movement
+
+    updateMovementReservations([requester], reservations, config, 1)
+
+    expect(requester.ownedZoneKeys.length).toBeGreaterThan(0)
+    expect(requester.clearingMovement).toBe(movement)
+
+    requester.progress += 0.001
+    updateMovementReservations([requester], reservations, config, 2)
+
+    expect(requester.ownedZoneKeys).toEqual([])
+    expect(requester.clearingMovement).toBeNull()
   })
 
   it('serves the older request before an equally distant lower-id request', () => {

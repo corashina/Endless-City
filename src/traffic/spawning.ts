@@ -227,6 +227,7 @@ const assignCandidate = (
   vehicle.ownedZoneKeys = []
   vehicle.plannedMovement = null
   vehicle.turn = null
+  vehicle.clearingMovement = null
   vehicle.previousPose = {
     ...positionOnLane(candidate.lane, candidate.progress),
     heading: headingForDirection(candidate.lane.direction),
@@ -275,6 +276,7 @@ export const createTrafficPool = (input: CreateTrafficPoolInput): VehicleState[]
       ownedZoneKeys: [],
       plannedMovement: null,
       turn: null,
+      clearingMovement: null,
       previousPose: {
         ...positionOnLane(accepted.lane, accepted.progress),
         heading: headingForDirection(accepted.lane.direction),
