@@ -1,6 +1,31 @@
 import { BLOCK_SIZE } from '../config'
 import { nextIntersection } from './lanes'
+import { chooseManeuver } from './random'
+import { planMovement } from './routing'
 import type { TrafficConfig, VehicleState } from './types'
+
+export const planMissingMovements = (
+  vehicles: readonly VehicleState[],
+  seed: number,
+  config: Pick<TrafficConfig, 'intersectionHalfExtent'>,
+): void => {
+  for (const vehicle of vehicles) {
+    if (!vehicle.active || vehicle.turn !== null || vehicle.plannedMovement !== null) continue
+
+    const maneuver = chooseManeuver(
+      seed,
+      vehicle.id,
+      vehicle.routeDecisionIndex,
+      vehicle.traits.profile,
+    )
+    vehicle.plannedMovement = planMovement(
+      vehicle.lane,
+      vehicle.progress,
+      maneuver,
+      config.intersectionHalfExtent,
+    )
+  }
+}
 
 export const occupiedIntersectionKeys = (
   vehicle: Pick<VehicleState, 'lane' | 'progress' | 'length'>,

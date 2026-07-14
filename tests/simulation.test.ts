@@ -3,7 +3,8 @@ import { BLOCK_SIZE, FIXED_STEP_SECONDS } from '../src/config'
 import { occupiedIntersectionKeys } from '../src/traffic/intersections'
 import { positionOnLane } from '../src/traffic/lanes'
 import { movementConflictZones } from '../src/traffic/movements'
-import { movementPoseAt, planMovement } from '../src/traffic/routing'
+import { chooseManeuver } from '../src/traffic/random'
+import { movementPoseAt, planMovement, poseForVehicle } from '../src/traffic/routing'
 import { TrafficSimulation } from '../src/traffic/simulation'
 import type {
   Direction,
@@ -34,7 +35,10 @@ const prototypes: readonly VehiclePrototypeMetadata[] = directions.flatMap((dire
   { id: `${direction}-long`, length: 6, direction },
 ])
 
-const assertNoFollowingOverlap = (vehicles: readonly VehicleState[]): void => {
+const assertNoFollowingOverlap = (
+  vehicles: readonly VehicleState[],
+  context = '',
+): void => {
   const laneGroups = new Map<string, VehicleState[]>()
 
   for (const vehicle of vehicles) {
@@ -56,7 +60,9 @@ const assertNoFollowingOverlap = (vehicles: readonly VehicleState[]): void => {
       const bumperGap = leader.progress - follower.progress
         - (leader.length + follower.length) / 2
       if (bumperGap < -1e-9) {
-        throw new Error(`Vehicles ${follower.id} and ${leader.id} overlap by ${-bumperGap}`)
+        throw new Error(
+          `Vehicles ${follower.id} and ${leader.id} overlap by ${-bumperGap} ${context}`,
+        )
       }
     }
   }
@@ -115,6 +121,47 @@ describe('traffic simulation', () => {
     expect(simulation.reservations).toBeInstanceOf(Map)
   })
 
+  it('plans one seeded maneuver per route decision without rerolling while waiting', () => {
+    const simulation = new TrafficSimulation({
+      count: 1,
+      seed: 12345,
+      camera: { x: 0, z: 0 },
+      prototypes,
+      config,
+    })
+    const state = simulation.vehicles[0]!
+
+    simulation.step(0, { x: 0, z: 0 })
+    const movement = state.plannedMovement
+
+    expect(movement?.maneuver).toBe(chooseManeuver(
+      12345,
+      state.id,
+      state.routeDecisionIndex,
+      state.traits.profile,
+    ))
+
+    simulation.step(0, { x: 0, z: 0 })
+    expect(state.plannedMovement).toBe(movement)
+    expect(state.routeDecisionIndex).toBe(0)
+  })
+
+  it('reports active, visible, moving-visible, and visible direction counts', () => {
+    const simulation = new TrafficSimulation({
+      count: 72,
+      seed: 12345,
+      camera: { x: 0, z: 0 },
+      prototypes,
+      config,
+    })
+    const diagnostics = simulation.counts({ x: 0, z: 0 })
+
+    expect(diagnostics.active).toBe(72)
+    expect(diagnostics.visible).toBeGreaterThanOrEqual(18)
+    expect(diagnostics.movingVisible).toBeGreaterThanOrEqual(11)
+    expect(diagnostics.directions.size).toBe(4)
+  })
+
   it('completes one movement on its outgoing lane and advances the route decision once', () => {
     const simulation = new TrafficSimulation({
       count: 1,
@@ -153,9 +200,67 @@ describe('traffic simulation', () => {
     expect(state.routeDecisionIndex).toBe(1)
   })
 
-  it('stays bounded, finite, conflict-free, and deterministic across 36,000 steps', () => {
+  it('preserves stationary-camera density, safety, and determinism across 216,000 steps', () => {
+    const camera = { x: 0, z: 0 }
     const createSimulation = (): TrafficSimulation => new TrafficSimulation({
-      count: 49,
+      count: 72,
+      seed: 24680,
+      camera,
+      prototypes,
+      config,
+    })
+    const simulation = createSimulation()
+    const duplicate = createSimulation()
+    let minimumActive = Number.POSITIVE_INFINITY
+    let minimumVisible = Number.POSITIVE_INFINITY
+    let minimumMovingVisible = Number.POSITIVE_INFINITY
+
+    for (let step = 1; step <= 216_000; step += 1) {
+      simulation.step(FIXED_STEP_SECONDS, camera)
+      duplicate.step(FIXED_STEP_SECONDS, camera)
+
+      if (step >= 18_000 && step % 3_600 === 0) {
+        const diagnostics = simulation.counts(camera)
+        minimumActive = Math.min(minimumActive, diagnostics.active)
+        minimumVisible = Math.min(minimumVisible, diagnostics.visible)
+        minimumMovingVisible = Math.min(minimumMovingVisible, diagnostics.movingVisible)
+        expect(diagnostics.active, `active cars at step ${step}`).toBe(72)
+        expect(diagnostics.visible, `visible cars at step ${step}`).toBeGreaterThanOrEqual(18)
+        expect(diagnostics.movingVisible, `moving visible cars at step ${step}`)
+          .toBeGreaterThanOrEqual(11)
+
+        for (const vehicle of simulation.vehicles) {
+          const pose = poseForVehicle(vehicle)
+          if (![
+            vehicle.length,
+            vehicle.lane.line,
+            vehicle.previousProgress,
+            vehicle.progress,
+            vehicle.speed,
+            vehicle.desiredSpeed,
+            pose.x,
+            pose.z,
+            pose.heading,
+          ].every(Number.isFinite)) {
+            throw new Error(`Vehicle ${vehicle.id} has a non-finite field at step ${step}`)
+          }
+        }
+
+        assertNoFollowingOverlap(simulation.vehicles)
+        assertNoSharedMovementZone(simulation.vehicles)
+      }
+    }
+
+    expect(simulation.vehicles).toEqual(duplicate.vehicles)
+    expect([...simulation.reservations]).toEqual([...duplicate.reservations])
+    expect(minimumActive).toBe(72)
+    expect(minimumVisible).toBeGreaterThanOrEqual(18)
+    expect(minimumMovingVisible).toBeGreaterThanOrEqual(11)
+  }, 240_000)
+
+  it('stays dense, bounded, finite, directionally diverse, and deterministic while moving', () => {
+    const createSimulation = (): TrafficSimulation => new TrafficSimulation({
+      count: 72,
       seed: 24680,
       camera: { x: 0, z: 0 },
       prototypes,
@@ -164,6 +269,7 @@ describe('traffic simulation', () => {
     const simulation = createSimulation()
     const duplicate = createSimulation()
     const stepCount = 36_000
+    let visibleDirections = new Set<Direction>()
 
     for (let step = 0; step < stepCount; step += 1) {
       const camera = {
@@ -174,11 +280,12 @@ describe('traffic simulation', () => {
       simulation.step(FIXED_STEP_SECONDS, camera)
       duplicate.step(FIXED_STEP_SECONDS, camera)
 
-      if (simulation.vehicles.length !== 49) {
+      if (simulation.vehicles.length !== 72) {
         throw new Error(`Traffic pool changed length at step ${step}`)
       }
 
       for (const vehicle of simulation.vehicles) {
+        const pose = poseForVehicle(vehicle)
         if (![
           vehicle.length,
           vehicle.lane.line,
@@ -186,23 +293,36 @@ describe('traffic simulation', () => {
           vehicle.progress,
           vehicle.speed,
           vehicle.desiredSpeed,
+          pose.x,
+          pose.z,
+          pose.heading,
         ].every(Number.isFinite)) {
           throw new Error(`Vehicle ${vehicle.id} has a non-finite field at step ${step}`)
         }
 
         if (!vehicle.active) continue
-        const position = positionOnLane(vehicle.lane, vehicle.progress)
-        const distance = Math.hypot(position.x - camera.x, position.z - camera.z)
+        const distance = Math.hypot(pose.x - camera.x, pose.z - camera.z)
         if (distance > config.simulationRadius + BLOCK_SIZE * 2) {
           throw new Error(`Vehicle ${vehicle.id} escaped the simulation at step ${step}`)
         }
       }
 
-      assertNoFollowingOverlap(simulation.vehicles)
+      const diagnostics = simulation.counts(camera)
+      for (const direction of diagnostics.directions) visibleDirections.add(direction)
+      if ((step + 1) % 3_600 === 0) {
+        expect(diagnostics.visible, `visible cars at step ${step + 1}`)
+          .toBeGreaterThanOrEqual(18)
+        expect(visibleDirections, `visible directions through step ${step}`).toEqual(
+          new Set(directions),
+        )
+        visibleDirections = new Set()
+      }
+
+      assertNoFollowingOverlap(simulation.vehicles, `at step ${step}`)
       assertNoSharedMovementZone(simulation.vehicles)
     }
 
     expect(simulation.vehicles).toEqual(duplicate.vehicles)
     expect([...simulation.reservations]).toEqual([...duplicate.reservations])
-  }, 15_000)
+  }, 60_000)
 })
