@@ -496,7 +496,6 @@ export async function startApp(
       context.directionalLight.target.position.copy(shadowTarget)
       context.directionalLight.position.copy(shadowTarget).add(shadowOffset)
       context.renderer.render(context.scene, context.camera)
-      elements.overlay?.updateFps(timestamp)
     }
 
     removeBootstrapPageTransitionListeners()
