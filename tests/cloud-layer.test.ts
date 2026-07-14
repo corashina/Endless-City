@@ -10,8 +10,9 @@ import {
 
 describe('wrapCloudPosition', () => {
   it('retains clouds inside the outer boundary', () => {
-    expect(wrapCloudPosition({ x: 200, z: 0 }, { x: 0, z: 0 }, 0))
-      .toEqual({ x: 200, z: 0 })
+    const position = { x: 200, z: 0 }
+
+    expect(wrapCloudPosition(position, { x: 0, z: 0 }, 0)).toBe(position)
   })
 
   it('wraps an escaped cloud to the opposite edge with a stable offset', () => {
@@ -54,6 +55,28 @@ describe('CloudLayer', () => {
       expect(cloud.position.x).toBeCloseTo(logical.x - 480, 10)
       expect(cloud.position.z).toBeCloseTo(logical.z + 120, 10)
     }
+  })
+
+  it('keeps logical position identities stable across updates and wrapping', () => {
+    const layer = new CloudLayer(new THREE.Scene())
+    const logicalPositions = layer.root.children.map((cloud) =>
+      cloud.userData.logicalPosition as { x: number; z: number },
+    )
+    const initialCoordinates = logicalPositions.map((position) => ({ ...position }))
+
+    layer.update({ x: 0, z: 0 }, { x: 25, z: -40 })
+
+    layer.root.children.forEach((cloud, index) => {
+      expect(cloud.userData.logicalPosition).toBe(logicalPositions[index])
+    })
+    expect(logicalPositions).toEqual(initialCoordinates)
+
+    layer.update({ x: 500, z: 0 }, { x: 480, z: -120 })
+
+    layer.root.children.forEach((cloud, index) => {
+      expect(cloud.userData.logicalPosition).toBe(logicalPositions[index])
+    })
+    expect(logicalPositions).not.toEqual(initialCoordinates)
   })
 
   it('removes its root and disposes shared resources exactly once', () => {
