@@ -8,9 +8,9 @@ Endless City is an interactive low-poly WebGL city that streams a deterministic 
 
 ## Explore
 
-- Mouse: drag to move and scroll to zoom. The viewing angle is fixed.
+- Mouse: drag to move and scroll to zoom. Movement eases to a stop, and the viewing angle stays fixed.
 - Touch: drag with one finger to move; pinch or drag with two fingers to move and zoom.
-- Interface: use **How to explore** to reopen the help panel. Performance statistics are opt-in; `?debug=1` shows them immediately.
+- Presentation: once loading completes, the canvas is the entire interface. Loading, recovery, and Retry appear only when the scene is unavailable.
 
 Traffic adapts once at startup to the viewport. High quality uses 49 vehicle slots, balanced uses 32, and viewports narrower than 768 CSS pixels use 20. Every profile retains eastbound, westbound, northbound, and southbound traffic.
 
@@ -48,7 +48,7 @@ The build command runs strict TypeScript checking and emits a production site to
 - `src/traffic/` — lane geometry, fixed-step following, intersection reservations, spawning, and hidden recycling.
 - `src/rendering/` — one-time asset loading, quality selection, Three.js scene setup, and pooled city/traffic views.
 - `src/camera/` — map controls and bounded render-local camera coordinates.
-- `src/ui/` — loading, help, diagnostics, failure, and recovery states.
+- `src/ui/` — loading, recovery, and failure states shown only while the scene is unavailable.
 - `src/app.ts` and `src/main.ts` — application lifecycle and browser bootstrap.
 - `tests/` — deterministic unit, integration, lifecycle, and existing-asset contract tests.
 - `js/clusters/` — the original GLTF/GLB visual assets reused by the redesign.
@@ -57,7 +57,7 @@ The build command runs strict TypeScript checking and emits a production site to
 
 ## Asset constraint
 
-The redesign adds no 3D models, textures, images, icons, or generated geometry. Runtime visuals come from the existing files in `js/clusters/`; `preview.png` remains the project preview. Code changes should preserve that constraint unless the project direction is explicitly changed.
+The city and vehicle visuals continue to use the existing files in `js/clusters/`. The only runtime-generated visual is the bounded five-cloud low-poly atmosphere built from shared Three.js primitives; it adds no image, texture, model, or network asset. `preview.png` remains the project preview.
 
 ## License
 
