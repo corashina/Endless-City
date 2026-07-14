@@ -246,12 +246,18 @@ describe('createSceneGraph', () => {
   it('configures the camera, fog, fill light, and bounded directional shadows', () => {
     const graph = createSceneGraph(profile, 16 / 9)
 
-    expect((graph.scene.background as THREE.Color).getHex()).toBe(0)
+    expect((graph.scene.background as THREE.Color).getHex()).toBe(0xd7e5ee)
     expect(graph.scene.fog).toMatchObject({ near: 200, far: 300 })
+    expect((graph.scene.fog as THREE.Fog).color.getHex()).toBe(0xd7e5ee)
     expect(graph.camera).toMatchObject({ fov: 40, aspect: 16 / 9, near: 1, far: 500 })
     expect(graph.camera.position.toArray()).toEqual([10, 100, 10])
     expect(graph.scene.children.filter((child) => child instanceof THREE.DirectionalLight)).toHaveLength(1)
     expect(graph.scene.children.filter((child) => child instanceof THREE.HemisphereLight)).toHaveLength(1)
+    expect(graph.directionalLight.color.getHex()).toBe(0xfff1cf)
+    expect(graph.directionalLight.intensity).toBe(1.6)
+    expect(graph.hemisphereLight.color.getHex()).toBe(0xe7f2ff)
+    expect(graph.hemisphereLight.groundColor.getHex()).toBe(0xb9aa8f)
+    expect(graph.hemisphereLight.intensity).toBe(1.25)
     expect(graph.directionalLight.castShadow).toBe(true)
     expect(graph.directionalLight.shadow.mapSize.toArray()).toEqual([2048, 2048])
     expect(graph.directionalLight.shadow.camera).toMatchObject({

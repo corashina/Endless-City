@@ -38,6 +38,8 @@ describe('configureLockedLegacyCamera', () => {
     expect(controls.enableRotate).toBe(false)
     expect(controls.enablePan).toBe(true)
     expect(controls.enableZoom).toBe(true)
+    expect(controls.enableDamping).toBe(true)
+    expect(controls.dampingFactor).toBe(0.08)
     expect(controls.touches).toEqual({
       ONE: THREE.TOUCH.PAN,
       TWO: THREE.TOUCH.DOLLY_PAN,
