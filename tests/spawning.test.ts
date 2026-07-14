@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { WorldPoint } from '../src/city/types'
 import { occupiedIntersectionKeys } from '../src/traffic/intersections'
 import { positionOnLane } from '../src/traffic/lanes'
+import { createDriverTraits } from '../src/traffic/random'
 import { createTrafficPool, recycleTraffic } from '../src/traffic/spawning'
 import type {
   Direction,
@@ -27,6 +28,28 @@ const prototypes: readonly VehiclePrototypeMetadata[] = directions.flatMap((dire
   { id: `${direction}-short`, length: 4, direction },
   { id: `${direction}-long`, length: 6, direction },
 ])
+
+const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
+  const id = overrides.id ?? 0
+  return {
+    id,
+    prototypeId: 'east-short',
+    length: 4,
+    lane: { direction: 'east', line: 0 },
+    nativeDirection: 'east',
+    previousProgress: 0,
+    progress: 0,
+    speed: 0,
+    desiredSpeed: 8,
+    active: true,
+    reservationKey: null,
+    lifecycle: 0,
+    traits: createDriverTraits(1, id, 0),
+    routeDecisionIndex: 0,
+    offscreenStoppedSteps: 0,
+    ...overrides,
+  }
+}
 
 const assertMinimumLaneGaps = (vehicles: readonly VehicleState[]): void => {
   const laneGroups = new Map<string, VehicleState[]>()
@@ -67,6 +90,19 @@ describe('deterministic traffic spawning', () => {
     )
   })
 
+  it('initializes stable driver state for every vehicle', () => {
+    const vehicles = createTrafficPool({ count: 20, seed: 12345, camera, prototypes, config })
+
+    for (const state of vehicles) {
+      const prototype = prototypes.find(({ id }) => id === state.prototypeId)
+      expect(state.nativeDirection).toBe(prototype?.direction)
+      expect(state.lifecycle).toBe(0)
+      expect(state.traits).toEqual(createDriverTraits(12345, state.id, 0))
+      expect(state.routeDecisionIndex).toBe(0)
+      expect(state.offscreenStoppedSteps).toBe(0)
+    }
+  })
+
   it('meets the configured minimum bumper gap on every lane', () => {
     const vehicles = createTrafficPool({ count: 49, seed: 12345, camera, prototypes, config })
 
@@ -80,30 +116,16 @@ describe('deterministic traffic spawning', () => {
   })
 
   it('reassigns only vehicles outside the simulation radius', () => {
-    const inside: VehicleState = {
-      id: 0,
-      prototypeId: 'east-short',
-      length: 4,
-      lane: { direction: 'east', line: 0 },
-      previousProgress: 0,
-      progress: 0,
-      speed: 5,
-      desiredSpeed: 10,
-      active: true,
-      reservationKey: null,
-    }
-    const outside: VehicleState = {
+    const inside = vehicle({ speed: 5, desiredSpeed: 10 })
+    const outside = vehicle({
       id: 1,
       prototypeId: 'east-long',
       length: 6,
-      lane: { direction: 'east', line: 0 },
       previousProgress: config.simulationRadius + 1,
       progress: config.simulationRadius + 1,
       speed: 9,
       desiredSpeed: 11,
-      active: true,
-      reservationKey: null,
-    }
+    })
     const insideBefore = structuredClone(inside)
     const outsideBefore = structuredClone(outside)
 
@@ -127,32 +149,49 @@ describe('deterministic traffic spawning', () => {
     assertMinimumLaneGaps([inside, outside])
   })
 
+  it('refreshes deterministic driver state when recycling a vehicle', () => {
+    const recycled = vehicle({
+      id: 7,
+      previousProgress: config.simulationRadius + 1,
+      progress: config.simulationRadius + 1,
+      lifecycle: 3,
+      traits: createDriverTraits(12345, 7, 3),
+      routeDecisionIndex: 8,
+      offscreenStoppedSteps: 12,
+    })
+
+    recycleTraffic({
+      vehicles: [recycled],
+      seed: 12345,
+      step: 0,
+      camera,
+      prototypes,
+      config,
+    })
+
+    const prototype = prototypes.find(({ id }) => id === recycled.prototypeId)
+    expect(recycled.active).toBe(true)
+    expect(recycled.nativeDirection).toBe(prototype?.direction)
+    expect(recycled.lifecycle).toBe(4)
+    expect(recycled.traits).toEqual(createDriverTraits(12345, recycled.id, 4))
+    expect(recycled.routeDecisionIndex).toBe(0)
+    expect(recycled.offscreenStoppedSteps).toBe(0)
+  })
+
   it('keeps a blocked slot inactive and safely retries it on a later step', () => {
     const blockedConfig: TrafficConfig = { ...config, minimumGap: 1_000 }
-    const blockedVehicle: VehicleState = {
+    const blockedVehicle = vehicle({
       id: 100,
-      prototypeId: 'east-short',
-      length: 4,
-      lane: { direction: 'east', line: 0 },
       previousProgress: config.simulationRadius + 1,
       progress: config.simulationRadius + 1,
       speed: 9,
       desiredSpeed: 11,
-      active: true,
-      reservationKey: null,
-    }
+    })
     const blockers: VehicleState[] = directions.flatMap((direction, directionIndex) =>
-      Array.from({ length: 15 }, (_, lineIndex) => ({
+      Array.from({ length: 15 }, (_, lineIndex) => vehicle({
         id: directionIndex * 15 + lineIndex,
         prototypeId: `${direction}-short`,
-        length: 4,
         lane: { direction, line: lineIndex - 7 },
-        previousProgress: 0,
-        progress: 0,
-        speed: 0,
-        desiredSpeed: 8,
-        active: true,
-        reservationKey: null,
       })),
     )
     const blockedVehicles = [blockedVehicle, ...blockers]

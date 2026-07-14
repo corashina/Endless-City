@@ -1,4 +1,22 @@
+import type { WorldPoint } from '../city/types'
+
 export type Direction = 'east' | 'west' | 'north' | 'south'
+export type DriverProfile = 'cautious' | 'normal' | 'assertive'
+export type Maneuver = 'straight' | 'left' | 'right'
+
+export interface DriverTraits {
+  readonly profile: DriverProfile
+  readonly cruiseSpeed: number
+  readonly maximumAcceleration: number
+  readonly comfortableBraking: number
+  readonly emergencyBraking: number
+  readonly timeHeadway: number
+  readonly minimumGap: number
+}
+
+export interface VehiclePose extends WorldPoint {
+  readonly heading: number
+}
 
 export interface Lane {
   readonly direction: Direction
@@ -16,12 +34,17 @@ export interface VehicleState {
   prototypeId: string
   length: number
   lane: Lane
+  nativeDirection: Direction
   previousProgress: number
   progress: number
   speed: number
   desiredSpeed: number
   active: boolean
   reservationKey: string | null
+  lifecycle: number
+  traits: DriverTraits
+  routeDecisionIndex: number
+  offscreenStoppedSteps: number
 }
 
 export interface TrafficConfig {

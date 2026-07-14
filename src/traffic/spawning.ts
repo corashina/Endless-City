@@ -3,6 +3,7 @@ import type { WorldPoint } from '../city/types'
 import { BLOCK_SIZE } from '../config'
 import { occupiedIntersectionKeys } from './intersections'
 import { laneKey, positionOnLane } from './lanes'
+import { createDriverTraits } from './random'
 import type {
   Direction,
   Lane,
@@ -201,16 +202,25 @@ const recycledCandidate = (
   }
 }
 
-const assignCandidate = (vehicle: VehicleState, candidate: SpawnCandidate): void => {
+const assignCandidate = (
+  vehicle: VehicleState,
+  candidate: SpawnCandidate,
+  seed: number,
+): void => {
   vehicle.prototypeId = candidate.prototype.id
   vehicle.length = candidate.prototype.length
   vehicle.lane = candidate.lane
+  vehicle.nativeDirection = candidate.prototype.direction
   vehicle.previousProgress = candidate.progress
   vehicle.progress = candidate.progress
   vehicle.speed = 0
   vehicle.desiredSpeed = candidate.desiredSpeed
   vehicle.active = true
   vehicle.reservationKey = null
+  vehicle.lifecycle += 1
+  vehicle.traits = createDriverTraits(seed, vehicle.id, vehicle.lifecycle)
+  vehicle.routeDecisionIndex = 0
+  vehicle.offscreenStoppedSteps = 0
 }
 
 export const createTrafficPool = (input: CreateTrafficPoolInput): VehicleState[] => {
@@ -239,12 +249,17 @@ export const createTrafficPool = (input: CreateTrafficPoolInput): VehicleState[]
       prototypeId: accepted.prototype.id,
       length: accepted.prototype.length,
       lane: accepted.lane,
+      nativeDirection: accepted.prototype.direction,
       previousProgress: accepted.progress,
       progress: accepted.progress,
       speed: 0,
       desiredSpeed: accepted.desiredSpeed,
       active: true,
       reservationKey: null,
+      lifecycle: 0,
+      traits: createDriverTraits(input.seed, id, 0),
+      routeDecisionIndex: 0,
+      offscreenStoppedSteps: 0,
     })
   }
 
@@ -279,7 +294,7 @@ export const recycleTraffic = (input: RecycleTrafficInput): void => {
       if (intersectsConflictZone(candidate, input.config)) continue
       if (!hasMinimumGaps(candidate, input.vehicles, input.config.minimumGap, vehicle.id)) continue
 
-      assignCandidate(vehicle, candidate)
+      assignCandidate(vehicle, candidate, input.seed)
       break
     }
   }

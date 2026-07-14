@@ -4,6 +4,7 @@ import {
   updateIntersectionReservations,
   type IntersectionReservations,
 } from '../src/traffic/intersections'
+import { createDriverTraits } from '../src/traffic/random'
 import type { TrafficConfig, VehicleState } from '../src/traffic/types'
 import type { Direction } from '../src/traffic/types'
 
@@ -18,19 +19,27 @@ const config: TrafficConfig = {
   simulationRadius: 200,
 }
 
-const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => ({
-  id: 1,
-  prototypeId: 'car',
-  length: 4,
-  lane: { direction: 'east', line: 0 },
-  previousProgress: -31,
-  progress: -31,
-  speed: 0,
-  desiredSpeed: 8,
-  active: true,
-  reservationKey: null,
-  ...overrides,
-})
+const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
+  const id = overrides.id ?? 1
+  return {
+    id,
+    prototypeId: 'car',
+    length: 4,
+    lane: { direction: 'east', line: 0 },
+    nativeDirection: 'east',
+    previousProgress: -31,
+    progress: -31,
+    speed: 0,
+    desiredSpeed: 8,
+    active: true,
+    reservationKey: null,
+    lifecycle: 0,
+    traits: createDriverTraits(1, id, 0),
+    routeDecisionIndex: 0,
+    offscreenStoppedSteps: 0,
+    ...overrides,
+  }
+}
 
 const intersectsConflictZone = (state: VehicleState): boolean => {
   const crossingProgress = state.lane.direction === 'east' || state.lane.direction === 'north'

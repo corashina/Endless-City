@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { consumeFixedSteps, stepFollowing } from '../src/traffic/following'
+import { createDriverTraits } from '../src/traffic/random'
 import type { TrafficConfig, VehicleState } from '../src/traffic/types'
 
 const config: TrafficConfig = {
@@ -13,19 +14,27 @@ const config: TrafficConfig = {
   simulationRadius: 200,
 }
 
-const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => ({
-  id: 1,
-  prototypeId: 'car',
-  length: 4,
-  lane: { direction: 'east', line: 0 },
-  previousProgress: 0,
-  progress: 0,
-  speed: 0,
-  desiredSpeed: 10,
-  active: true,
-  reservationKey: null,
-  ...overrides,
-})
+const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
+  const id = overrides.id ?? 1
+  return {
+    id,
+    prototypeId: 'car',
+    length: 4,
+    lane: { direction: 'east', line: 0 },
+    nativeDirection: 'east',
+    previousProgress: 0,
+    progress: 0,
+    speed: 0,
+    desiredSpeed: 10,
+    active: true,
+    reservationKey: null,
+    lifecycle: 0,
+    traits: createDriverTraits(1, id, 0),
+    routeDecisionIndex: 0,
+    offscreenStoppedSteps: 0,
+    ...overrides,
+  }
+}
 
 describe('vehicle following', () => {
   it('never lets a follower front bumper pass its leader rear bumper', () => {

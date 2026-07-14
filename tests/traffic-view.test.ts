@@ -2,21 +2,30 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import type { AssetCatalog } from '../src/rendering/assets'
 import { interpolatedVehiclePoint, TrafficView } from '../src/rendering/traffic-view'
+import { createDriverTraits } from '../src/traffic/random'
 import type { VehicleState } from '../src/traffic/types'
 
-const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => ({
-  id: 0,
-  prototypeId: 'car',
-  length: 4,
-  lane: { direction: 'east', line: 0 },
-  previousProgress: 10,
-  progress: 14,
-  speed: 4,
-  desiredSpeed: 8,
-  active: true,
-  reservationKey: null,
-  ...overrides,
-})
+const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
+  const id = overrides.id ?? 0
+  return {
+    id,
+    prototypeId: 'car',
+    length: 4,
+    lane: { direction: 'east', line: 0 },
+    nativeDirection: 'east',
+    previousProgress: 10,
+    progress: 14,
+    speed: 4,
+    desiredSpeed: 8,
+    active: true,
+    reservationKey: null,
+    lifecycle: 0,
+    traits: createDriverTraits(1, id, 0),
+    routeDecisionIndex: 0,
+    offscreenStoppedSteps: 0,
+    ...overrides,
+  }
+}
 
 describe('interpolatedVehiclePoint', () => {
   it.each([
