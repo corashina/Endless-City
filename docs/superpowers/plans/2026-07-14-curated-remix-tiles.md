@@ -51,7 +51,7 @@
 - Produces: `QuarterTurn`, `ModuleDefinition`, `Placement`, `TileRecipe`, `Bounds2D`, `rotateFootprint()`, `placementBounds()`, `boundsOverlap()`, and `insidePlot()`.
 - Consumes: no earlier task output.
 
-- [ ] **Step 1: Write the failing geometry tests**
+- [x] **Step 1: Write the failing geometry tests**
 
 Create `tests/tile-geometry.test.ts`:
 
@@ -90,7 +90,7 @@ describe('tile recipe geometry', () => {
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -100,7 +100,7 @@ bun run test -- tests/tile-geometry.test.ts
 
 Expected: FAIL because `tools/tiles/geometry.ts` does not exist.
 
-- [ ] **Step 3: Add the shared contracts and geometry implementation**
+- [x] **Step 3: Add the shared contracts and geometry implementation**
 
 Create `tools/tiles/types.ts`:
 
@@ -189,7 +189,7 @@ Change `tsconfig.json` to typecheck the tools:
 "include": ["src", "tests", "tools"]
 ```
 
-- [ ] **Step 4: Run focused verification and verify GREEN**
+- [x] **Step 4: Run focused verification and verify GREEN**
 
 Run:
 
@@ -200,7 +200,7 @@ bun run typecheck
 
 Expected: four geometry tests pass and typecheck exits zero.
 
-- [ ] **Step 5: Commit the geometry contract**
+- [x] **Step 5: Commit the geometry contract**
 
 ```powershell
 git add tools/tiles/types.ts tools/tiles/geometry.ts tests/tile-geometry.test.ts tsconfig.json
@@ -219,7 +219,7 @@ git commit -m "feat: define remix tile geometry"
 - Consumes: `ModuleDefinition`, `Placement`, `TileRecipe`, and geometry helpers from Task 1.
 - Produces: `MODULE_CATALOG`, `MODULES_BY_ID`, `REMIX_TILE_RECIPES`, `REMIX_TILE_IDS`, `validateCatalog()`, and `validateRecipes()`.
 
-- [ ] **Step 1: Write failing catalog and recipe tests**
+- [x] **Step 1: Write failing catalog and recipe tests**
 
 Create `tests/tile-recipes.test.ts`:
 
@@ -278,7 +278,7 @@ describe('curated remix recipes', () => {
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 ```powershell
 bun run test -- tests/tile-recipes.test.ts
@@ -286,7 +286,7 @@ bun run test -- tests/tile-recipes.test.ts
 
 Expected: FAIL because the catalog, recipes, and validator do not exist.
 
-- [ ] **Step 3: Create the exact module catalog**
+- [x] **Step 3: Create the exact module catalog**
 
 Create `tools/tiles/module-catalog.ts`. Use this helper and these entries; keep the measured footprints unchanged:
 
@@ -336,7 +336,7 @@ export const MODULE_CATALOG = Object.freeze([
 export const MODULES_BY_ID = new Map(MODULE_CATALOG.map((entry) => [entry.id, entry]))
 ```
 
-- [ ] **Step 4: Create the 12 explicit recipes**
+- [x] **Step 4: Create the 12 explicit recipes**
 
 Create `tools/tiles/tile-recipes.ts`. The following placements have nonintersecting measured building footprints:
 
@@ -428,7 +428,7 @@ export const REMIX_TILE_RECIPES = Object.freeze([
 export const REMIX_TILE_IDS = REMIX_TILE_RECIPES.map(({ id }) => id)
 ```
 
-- [ ] **Step 5: Implement catalog and recipe validation**
+- [x] **Step 5: Implement catalog and recipe validation**
 
 Create `tools/tiles/validate-recipes.ts`:
 
@@ -510,7 +510,7 @@ function expectSurfaceCells(recipeId: string, actual: readonly string[]): void {
 }
 ```
 
-- [ ] **Step 6: Run focused verification and commit**
+- [x] **Step 6: Run focused verification and commit**
 
 ```powershell
 bun run test -- tests/tile-geometry.test.ts tests/tile-recipes.test.ts
@@ -533,7 +533,7 @@ Expected: both focused test files pass, typecheck exits zero, and the commit con
 - Consumes: `ModuleDefinition` and `Placement` from Task 1.
 - Produces: `SourceCache`, `findExactNode()`, `copyPlacedModule()`, and `measureModuleFootprint()`.
 
-- [ ] **Step 1: Add the compiler dependencies**
+- [x] **Step 1: Add the compiler dependencies**
 
 Run:
 
@@ -541,7 +541,7 @@ Run:
 bun add -d @gltf-transform/core@^4.3.0 @gltf-transform/functions@^4.3.0
 ```
 
-- [ ] **Step 2: Write failing source extraction tests**
+- [x] **Step 2: Write failing source extraction tests**
 
 Create `tests/tile-source-assets.test.ts`:
 
@@ -601,7 +601,7 @@ describe('source asset extraction', () => {
 })
 ```
 
-- [ ] **Step 3: Run the extraction test and verify RED**
+- [x] **Step 3: Run the extraction test and verify RED**
 
 ```powershell
 bun run test -- tests/tile-source-assets.test.ts
@@ -609,7 +609,7 @@ bun run test -- tests/tile-source-assets.test.ts
 
 Expected: FAIL because `source-assets.ts` does not exist.
 
-- [ ] **Step 4: Implement exact-node copying and anchoring**
+- [x] **Step 4: Implement exact-node copying and anchoring**
 
 Create `tools/tiles/source-assets.ts`:
 
@@ -696,7 +696,7 @@ export function copyPlacedModule(
 }
 ```
 
-- [ ] **Step 5: Run focused verification and commit**
+- [x] **Step 5: Run focused verification and commit**
 
 ```powershell
 bun run test -- tests/tile-source-assets.test.ts
@@ -719,7 +719,7 @@ Expected: extraction tests pass and TypeScript accepts the glTF Transform 4.3 AP
 - Consumes: `MODULES_BY_ID`, `REMIX_TILE_RECIPES`, `validateRecipes()`, `SourceCache`, and `copyPlacedModule()`.
 - Produces: `BuildOptions`, `BuildOutput`, `buildTile()`, `buildAllTiles()`, and committed GLB assets.
 
-- [ ] **Step 1: Write failing build integration tests**
+- [x] **Step 1: Write failing build integration tests**
 
 Create `tests/generated-tiles.test.ts`:
 
@@ -783,7 +783,7 @@ describe('generated remix tiles', () => {
 })
 ```
 
-- [ ] **Step 2: Run the build tests and verify RED**
+- [x] **Step 2: Run the build tests and verify RED**
 
 ```powershell
 bun run test -- tests/generated-tiles.test.ts
@@ -791,7 +791,7 @@ bun run test -- tests/generated-tiles.test.ts
 
 Expected: FAIL because `build-tiles.ts` does not exist.
 
-- [ ] **Step 3: Implement in-memory tile compilation and safe output replacement**
+- [x] **Step 3: Implement in-memory tile compilation and safe output replacement**
 
 Create `tools/tiles/build-tiles.ts`:
 
@@ -896,7 +896,7 @@ Add the compiler command to `package.json`:
 "tiles:build": "bun tools/tiles/build-tiles.ts"
 ```
 
-- [ ] **Step 4: Run the compiler tests and correct measured-footprint drift**
+- [x] **Step 4: Run the compiler tests and correct measured-footprint drift**
 
 ```powershell
 bun run test -- tests/generated-tiles.test.ts
@@ -904,7 +904,7 @@ bun run test -- tests/generated-tiles.test.ts
 
 Expected: both build tests pass. If a declared footprint differs by more than `0.05`, update the catalog to the exact measured value and rerun the pure recipe validator. Do not enlarge the plot or disable overlap checks.
 
-- [ ] **Step 5: Generate and inspect the committed outputs**
+- [x] **Step 5: Generate and inspect the committed outputs**
 
 ```powershell
 bun run tiles:build
@@ -914,7 +914,7 @@ bun run test -- tests/generated-tiles.test.ts tests/tile-source-assets.test.ts t
 
 Expected: 12 files appear, each is at most 900 KiB, their total is at most 6 MiB, and focused tests pass.
 
-- [ ] **Step 6: Commit compiler and assets**
+- [x] **Step 6: Commit compiler and assets**
 
 ```powershell
 git add package.json tools/tiles/build-tiles.ts tests/generated-tiles.test.ts js/clusters/remix-*.glb
@@ -937,7 +937,7 @@ git commit -m "feat: build curated remix tile assets"
 - Consumes: the 12 stable recipe IDs and GLBs from Tasks 2 and 4.
 - Produces: 27 runtime building IDs and exported `TOTAL_ASSET_REQUESTS = 29`.
 
-- [ ] **Step 1: Update runtime contract tests first**
+- [x] **Step 1: Update runtime contract tests first**
 
 In `tests/layout.test.ts`, change both catalog-count expectations from 15 to 27 and add:
 
@@ -990,7 +990,7 @@ it('restores the catalog-derived initial loading total before the first asset ev
 
 Import `TOTAL_ASSET_REQUESTS` from `../src/rendering/assets` in that test file.
 
-- [ ] **Step 2: Run the runtime contract tests and verify RED**
+- [x] **Step 2: Run the runtime contract tests and verify RED**
 
 ```powershell
 bun run test -- tests/layout.test.ts tests/assets.test.ts tests/app.test.ts
@@ -998,7 +998,7 @@ bun run test -- tests/layout.test.ts tests/assets.test.ts tests/app.test.ts
 
 Expected: FAIL because there are 15 IDs, `TOTAL_ASSET_REQUESTS` is not exported, and the initial total remains 17.
 
-- [ ] **Step 3: Extend `BuildingId` and the weighted catalog**
+- [x] **Step 3: Extend `BuildingId` and the weighted catalog**
 
 Append these members to `BuildingId` in `src/city/types.ts`:
 
@@ -1028,7 +1028,7 @@ Append these entries to `BUILDING_CATALOG` in `src/city/layout.ts`:
   { id: 'remix-park-corner', weight: 5 },
 ```
 
-- [ ] **Step 4: Derive request progress from the catalog**
+- [x] **Step 4: Derive request progress from the catalog**
 
 In `src/rendering/assets.ts`, replace the fixed constant and literal total type:
 
@@ -1062,7 +1062,7 @@ Change `index.html` to:
 
 Keep app tests that inject `{ total: 17 }` unchanged; those tests verify deferred forwarding of an arbitrary loader progress event.
 
-- [ ] **Step 5: Run runtime and full tests**
+- [x] **Step 5: Run runtime and full tests**
 
 ```powershell
 bun run test -- tests/layout.test.ts tests/assets.test.ts tests/app.test.ts tests/city-view.test.ts
@@ -1071,7 +1071,7 @@ bun run typecheck
 
 Expected: focused tests pass, the deterministic layout uses 27 IDs, and the fixed city pool remains 81 or 49 slots by quality profile.
 
-- [ ] **Step 6: Commit runtime integration**
+- [x] **Step 6: Commit runtime integration**
 
 ```powershell
 git add src/city/types.ts src/city/layout.ts src/rendering/assets.ts src/app.ts index.html tests/layout.test.ts tests/assets.test.ts tests/app.test.ts
@@ -1090,7 +1090,7 @@ git commit -m "feat: register curated remix tiles"
 - Consumes: `REMIX_TILE_RECIPES` and `/clusters/<recipe-id>.glb` URLs.
 - Produces: `galleryItems()` and the Vite-served `/tools/tiles/gallery.html` review page.
 
-- [ ] **Step 1: Write the gallery manifest test**
+- [x] **Step 1: Write the gallery manifest test**
 
 Create `tests/tile-gallery.test.ts`:
 
@@ -1110,7 +1110,7 @@ describe('remix tile gallery manifest', () => {
 })
 ```
 
-- [ ] **Step 2: Run the gallery test and verify RED**
+- [x] **Step 2: Run the gallery test and verify RED**
 
 ```powershell
 bun run test -- tests/tile-gallery.test.ts
@@ -1118,7 +1118,7 @@ bun run test -- tests/tile-gallery.test.ts
 
 Expected: FAIL because `tools/tiles/gallery.ts` does not exist.
 
-- [ ] **Step 3: Create the gallery page and renderer**
+- [x] **Step 3: Create the gallery page and renderer**
 
 Create `tools/tiles/gallery.html`:
 
@@ -1225,7 +1225,7 @@ article[data-state="error"] { border-color: #d66; }
 article[data-state="error"] p { color: #f99; overflow-wrap: anywhere; }
 ```
 
-- [ ] **Step 4: Verify the manifest and local gallery**
+- [x] **Step 4: Verify the manifest and local gallery**
 
 ```powershell
 bun run test -- tests/tile-gallery.test.ts
@@ -1236,7 +1236,7 @@ Open `/tools/tiles/gallery.html`. Check all labels and canvases, then inspect ev
 
 Expected: 12 labeled cards render without an error state or console warning.
 
-- [ ] **Step 5: Commit the gallery**
+- [x] **Step 5: Commit the gallery**
 
 ```powershell
 git add tools/tiles/gallery.html tools/tiles/gallery.ts tools/tiles/gallery.css tests/tile-gallery.test.ts tools/tiles/tile-recipes.ts js/clusters/remix-*.glb
@@ -1254,7 +1254,7 @@ git commit -m "feat: add remix tile review gallery"
 - Consumes: the finished compiler, gallery, 27-tile catalog, and 29-request loader.
 - Produces: maintainer instructions and completion evidence.
 
-- [ ] **Step 1: Replace the README asset constraint**
+- [x] **Step 1: Replace the README asset constraint**
 
 Replace the current `## Asset constraint` section with:
 
@@ -1278,7 +1278,7 @@ Add to the verification commands:
 bun run tiles:build
 ```
 
-- [ ] **Step 2: Update the architecture asset lifecycle**
+- [x] **Step 2: Update the architecture asset lifecycle**
 
 Replace the opening asset-lifecycle paragraph in `docs/architecture.md` with:
 
@@ -1290,7 +1290,7 @@ The original separable models live in `js/gltf/`. `tools/tiles/` uses named sour
 
 Update any remaining `15 building`, `17 request`, or no-generated-asset statements to the 27-building, 29-request, source-derived contract.
 
-- [ ] **Step 3: Run the reproducibility and automated gates**
+- [x] **Step 3: Run the reproducibility and automated gates**
 
 ```powershell
 bun run tiles:build
@@ -1314,7 +1314,7 @@ Serve the production build and the Vite development gallery. Verify:
 - camera, panning, zoom, traffic, fog, shadows, and floating-origin behavior remain unchanged;
 - all 12 gallery cards render and the browser console has no errors or warnings.
 
-- [ ] **Step 5: Mark plan evidence and commit documentation**
+- [x] **Step 5: Mark plan evidence and commit documentation**
 
 Check each completed box in this plan only after its command or visual check has produced evidence. Then commit:
 
@@ -1323,7 +1323,7 @@ git add README.md docs/architecture.md docs/superpowers/plans/2026-07-14-curated
 git commit -m "docs: document curated remix tiles"
 ```
 
-- [ ] **Step 6: Confirm the branch is ready for integration**
+- [x] **Step 6: Confirm the branch is ready for integration**
 
 ```powershell
 git status --short

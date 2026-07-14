@@ -35,6 +35,7 @@ Vite prints the local URL. Open it in the browser; source edits reload automatic
 Run each project gate independently:
 
 ```powershell
+bun run tiles:build
 bun run typecheck
 bun run test
 bun run build
@@ -52,12 +53,15 @@ The build command runs strict TypeScript checking and emits a production site to
 - `src/app.ts` and `src/main.ts` — application lifecycle and browser bootstrap.
 - `tests/` — deterministic unit, integration, lifecycle, and existing-asset contract tests.
 - `js/clusters/` — the original GLTF/GLB visual assets reused by the redesign.
+- `tools/tiles/` — validated recipes, offline GLB compiler, and local review gallery.
 - `docs/architecture.md` — maintainer guide to streaming, traffic, rendering, and errors.
 - `docs/legacy-audit.md` — original failure analysis and replacement invariants.
 
 ## Asset constraint
 
-The redesign adds no 3D models, textures, images, icons, or generated geometry. Runtime visuals come from the existing files in `js/clusters/`; `preview.png` remains the project preview. Code changes should preserve that constraint unless the project direction is explicitly changed.
+Runtime visuals use models and textures contained in this repository. The original separable sources live in `js/gltf/`; production-ready assets live in `js/clusters/`. Twelve `remix-*.glb` tiles derive only from those source models through `bun run tiles:build`.
+
+Do not import new models, generate new geometry, or add texture artwork without an explicit project-direction change. Before redistributing model derivatives outside this repository, confirm the provenance of the original model files.
 
 ## License
 
