@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MODULE_CATALOG } from '../tools/tiles/module-catalog'
+import { MODULE_CATALOG, MODULES_BY_ID } from '../tools/tiles/module-catalog'
 import { REMIX_TILE_IDS, REMIX_TILE_RECIPES } from '../tools/tiles/tile-recipes'
 import { validateCatalog, validateRecipes } from '../tools/tiles/validate-recipes'
 import type { ModuleDefinition, TileRecipe } from '../tools/tiles/types'
@@ -18,6 +18,72 @@ const ENRICHMENT_MODULES = [
   { id: 'fence', source: 'house2.gltf', nodeName: 'Props_Fence.obj', width: 39.60, depth: 0.16 },
 ] as const
 
+const prop = (moduleId: string, x: number, z: number, rotation: 0 | 1 | 2 | 3) => ({
+  moduleId, x, z, rotation,
+})
+
+const EXPECTED_PROP_PLACEMENTS = {
+  'remix-residential-court': [
+    prop('big-tree', 25, 0, 0), prop('bench-1', 0, 20, 0),
+    prop('parked-car', 0, 10, 0), prop('fir-tree', 15, 0, 0), prop('cube-tree', 5, 25, 0),
+  ],
+  'remix-residential-towers': [
+    prop('bench-2', 10, 25, 0), prop('big-tree', 27, 27, 0),
+    prop('parked-car', 0, -5, 0), prop('parked-car', 20, 22, 0),
+    prop('street-light', 10, 10, 0), prop('cube-tree', 10, -5, 0),
+  ],
+  'remix-residential-garden': [
+    prop('grass-fence', -9.5, 10, 0), prop('bench-1', 10, 15, 0),
+    prop('parked-car', 20, 12, 0), prop('fir-tree', 10, 25, 0),
+    prop('cube-tree', 20, 25, 0), prop('bush', 10, 20, 0),
+  ],
+  'remix-residential-row': [
+    prop('parked-car', -5, 23, 0), prop('parked-car', 8, 23, 0),
+    prop('cube-tree', 20, 25, 0), prop('fir-tree', 28, 25, 0),
+    prop('street-light', 15, 25, 0), prop('fence', 10, 29.5, 0),
+  ],
+  'remix-commercial-market': [
+    prop('bench-2', 20, 25, 0), prop('parked-car', 10, -5, 1),
+    prop('parked-car', 20, -5, 1), prop('barrier', 10, 22, 0),
+    prop('street-light', 10, 10, 0), prop('hydrant', 28, 20, 0),
+  ],
+  'remix-commercial-cafes': [
+    prop('coffee-chair', 15, 12, 0), prop('coffee-chair', 19, 12, 1),
+    prop('big-tree', 25, 25, 0), prop('parked-car', 5, 15, 0),
+    prop('street-light', 0, 12, 0), prop('cube-tree', 10, 25, 0),
+  ],
+  'remix-commercial-shops': [
+    prop('parked-car', 26, 0, 1), prop('parked-car', 26, 15, 1),
+    prop('street-light', 7, 0, 0), prop('street-light', 7, 17, 0),
+    prop('stop-sign', 26, 25, 0), prop('hydrant', 7, 25, 0),
+  ],
+  'remix-commercial-services': [
+    prop('pickup-truck', 25, 0, 0), prop('delivery-truck', 25, 20, 1),
+    prop('barrier', 0, 10, 0), prop('barrier', 10, 10, 0),
+    prop('stop-sign', 20, 10, 0), prop('street-light', 28, 10, 0),
+  ],
+  'remix-mixed-main-street': [
+    prop('bench-1', 0, 20, 0), prop('parked-car', 8, -5, 1),
+    prop('parked-car', 8, 15, 1), prop('street-light', 10, 5, 0),
+    prop('street-light', 10, 25, 0), prop('hydrant', 28, 8, 0),
+  ],
+  'remix-mixed-neighborhood': [
+    prop('big-tree', 25, 25, 0), prop('parked-car', 0, 10, 0),
+    prop('cube-tree', 10, 25, 0), prop('fir-tree', 10, -5, 0),
+    prop('street-light', 10, 10, 0), prop('bench-1', 15, 25, 0),
+  ],
+  'remix-civic-plaza': [
+    prop('bench-1', 15, 0, 0), prop('bench-2', 15, 8, 2), prop('big-tree', 25, 25, 0),
+    prop('cube-tree', 10, 25, 0), prop('street-light', 25, 0, 0),
+    prop('hydrant', 25, 8, 0), prop('police-car', 10, 18, 0),
+  ],
+  'remix-park-corner': [
+    prop('big-tree', -5, -5, 0), prop('cube-tree', 25, 25, 1),
+    prop('bench-1', 5, 10, 0), prop('bench-2', 20, 10, 2),
+    prop('bush', 10, 25, 0), prop('rock', 20, 0, 0), prop('fir-tree', -5, 25, 0),
+  ],
+} as const
+
 describe('remix module catalog', () => {
   it('contains unique stable IDs and exact source node names', () => {
     expect(() => validateCatalog(MODULE_CATALOG)).not.toThrow()
@@ -34,6 +100,18 @@ describe('remix module catalog', () => {
 })
 
 describe('curated remix recipes', () => {
+  it('pins medium-density prop placements for every remix tile', () => {
+    const actual = Object.fromEntries(REMIX_TILE_RECIPES.map((recipe) => [
+      recipe.id,
+      recipe.placements.filter(({ moduleId }) => MODULES_BY_ID.get(moduleId)?.kind === 'prop'),
+    ]))
+    expect(actual).toEqual(EXPECTED_PROP_PLACEMENTS)
+    for (const placements of Object.values(actual)) {
+      expect(placements.length).toBeGreaterThanOrEqual(4)
+      expect(placements.length).toBeLessThanOrEqual(7)
+    }
+  })
+
   it('keeps the approved recipe ID ordering stable', () => {
     expect(REMIX_TILE_IDS).toEqual([
       'remix-residential-court',
