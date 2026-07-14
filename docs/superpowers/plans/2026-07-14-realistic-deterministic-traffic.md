@@ -827,12 +827,12 @@ Run each command and inspect its full output:
 
 ```powershell
 bun run typecheck
-bun run test
+bun run test -- --exclude ".worktrees/**" --maxWorkers=2
 bun run build
 git diff --check
 ```
 
-Expected: TypeScript reports no errors; Vitest reports no failed files or tests; Vite completes the production build with no new warnings; diff check prints nothing.
+Result: TypeScript reported no errors; the root Vitest command passed 21 files and 189 tests; Vite completed the production build with no new warnings; diff check printed no whitespace errors.
 
 - [x] **Step 4: Review requirements against evidence**
 
