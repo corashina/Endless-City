@@ -1303,7 +1303,7 @@ git diff --check
 
 Expected: regeneration changes no GLB bytes, typecheck passes, every test file passes, the production build succeeds, and diff check prints nothing.
 
-- [ ] **Step 4: Run browser smoke checks**
+- [x] **Step 4: Run browser smoke checks**
 
 Serve the production build and the Vite development gallery. Verify:
 
