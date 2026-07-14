@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   intersectionKey,
+  laneProgressAtPoint,
   laneKey,
   nextIntersection,
   positionOnLane,
@@ -26,6 +27,15 @@ describe('lane geometry', () => {
 
   it('positions southbound traffic on its authored lane offset', () => {
     expect(positionOnLane({ direction: 'south', line: 0 }, 100)).toEqual({ x: -16, z: -100 })
+  })
+
+  it.each([
+    ['east', 13],
+    ['west', -13],
+    ['north', -7],
+    ['south', 7],
+  ] as const)('projects a point onto %s lane progress', (direction, expected) => {
+    expect(laneProgressAtPoint({ direction, line: 4 }, { x: 13, z: -7 })).toBe(expected)
   })
 
   it('finds the next eastbound crossing on the lane line', () => {

@@ -287,10 +287,23 @@ describe('owned application lifecycle', () => {
 describe('startApp setup cleanup', () => {
   it('keeps production traffic beyond the 300-unit fog boundary before recycling', () => {
     const trafficConfig = (appModule as unknown as {
-      TRAFFIC_CONFIG?: { protectedRadius: number; simulationRadius: number }
+      TRAFFIC_CONFIG?: {
+        emergencyBrakingFloor: number
+        reservationLifetimeSteps: number
+        movementCorridorHalfWidth: number
+        stoppedSpeedThreshold: number
+        offscreenStoppedTimeoutSteps: number
+        protectedRadius: number
+        simulationRadius: number
+      }
     }).TRAFFIC_CONFIG
 
     expect(trafficConfig).toEqual(expect.objectContaining({
+      emergencyBrakingFloor: 7,
+      reservationLifetimeSteps: 120,
+      movementCorridorHalfWidth: 2.25,
+      stoppedSpeedThreshold: 0.25,
+      offscreenStoppedTimeoutSteps: 720,
       protectedRadius: 300,
       simulationRadius: 420,
     }))
@@ -393,8 +406,8 @@ describe('startApp setup cleanup', () => {
         renderOrigin: { x: 6_000, z: -6_000 },
         localCamera: { x: 0, z: 0 },
         buildingPoolSize: 81,
-        vehicleSlotCount: 49,
-        activeVehicleCount: 49,
+        vehicleSlotCount: 72,
+        activeVehicleCount: 72,
         activeDirections: ['east', 'north', 'south', 'west'],
       })
       expect(snapshot.visibleAssignments).toHaveLength(81)

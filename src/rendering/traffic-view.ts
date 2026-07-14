@@ -1,21 +1,30 @@
 import * as THREE from 'three'
 import type { WorldPoint } from '../city/types'
-import { positionOnLane } from '../traffic/lanes'
-import type { VehicleState } from '../traffic/types'
+import {
+  headingForDirection,
+  poseForVehicle,
+  shortestAngleDelta,
+} from '../traffic/routing'
+import type { VehiclePose, VehicleState } from '../traffic/types'
 import type { AssetCatalog } from './assets'
 
-export function interpolatedVehiclePoint(
+export function interpolatedVehiclePose(
   vehicle: VehicleState,
   alpha: number,
-): WorldPoint {
-  const progress = vehicle.previousProgress
-    + (vehicle.progress - vehicle.previousProgress) * alpha
-  return positionOnLane(vehicle.lane, progress)
+): VehiclePose {
+  const current = poseForVehicle(vehicle)
+  return {
+    x: vehicle.previousPose.x + (current.x - vehicle.previousPose.x) * alpha,
+    z: vehicle.previousPose.z + (current.z - vehicle.previousPose.z) * alpha,
+    heading: vehicle.previousPose.heading
+      + shortestAngleDelta(vehicle.previousPose.heading, current.heading) * alpha,
+  }
 }
 
 interface VehicleSlot {
   prototypeId: string
   object: THREE.Object3D
+  baseRotationY: number
 }
 
 export class TrafficView {
@@ -51,13 +60,16 @@ export class TrafficView {
       object.visible = vehicle.active
       if (!vehicle.active) continue
 
-      const point = interpolatedVehiclePoint(vehicle, alpha)
-      object.position.set(point.x - origin.x, object.position.y, point.z - origin.z)
+      const pose = interpolatedVehiclePose(vehicle, alpha)
+      object.position.set(pose.x - origin.x, object.position.y, pose.z - origin.z)
+      object.rotation.y = this.slots[index]!.baseRotationY
+        + headingForDirection(vehicle.nativeDirection)
+        - pose.heading
     }
   }
 
   private createSlot(prototypeId: string): VehicleSlot {
     const object = this.assets.cloneVehicle(prototypeId) ?? new THREE.Group()
-    return { prototypeId, object }
+    return { prototypeId, object, baseRotationY: object.rotation.y }
   }
 }

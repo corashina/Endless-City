@@ -36,8 +36,13 @@ export const TRAFFIC_CONFIG = Object.freeze({
   timeHeadway: 1,
   maximumAcceleration: 2,
   comfortableBraking: 4,
+  emergencyBrakingFloor: 7,
   intersectionHalfExtent: 5,
   reservationLookAhead: 20,
+  reservationLifetimeSteps: 120,
+  movementCorridorHalfWidth: 2.25,
+  stoppedSpeedThreshold: 0.25,
+  offscreenStoppedTimeoutSteps: 720,
   protectedRadius: FOG_FAR,
   simulationRadius: FOG_FAR + BLOCK_SIZE * 2,
 } satisfies TrafficConfig)
