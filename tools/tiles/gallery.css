@@ -1,0 +1,10 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #151513; color: #f4f1e8; }
+body { margin: 0; padding: 24px; }
+header { max-width: 900px; margin: 0 auto 24px; }
+#gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+article { padding: 12px; border: 1px solid #45453f; border-radius: 8px; background: #20201d; }
+h1, h2, p { margin-top: 0; }
+h2 { font-size: 1rem; text-transform: capitalize; }
+canvas { display: block; width: 100%; height: auto; background: #000; }
+article[data-state="error"] { border-color: #d66; }
+article[data-state="error"] p { color: #f99; overflow-wrap: anywhere; }
