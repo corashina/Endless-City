@@ -1,5 +1,15 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { chooseQualityProfile } from '../../src/rendering/quality'
+import {
+  configureSceneRenderer,
+  createSceneGraph,
+  resizeSceneViewport,
+  type SceneGraph,
+  type SceneRendererAdapter,
+  type SceneViewport,
+  type ViewportRendererAdapter,
+} from '../../src/rendering/scene'
 import { REMIX_TILE_RECIPES } from './tile-recipes'
 
 export interface GalleryItem { readonly id: string; readonly label: string; readonly url: string }
@@ -8,6 +18,32 @@ export const galleryItems = (): GalleryItem[] => REMIX_TILE_RECIPES.map(({ id })
   label: id.replace(/^remix-/, '').replaceAll('-', ' '),
   url: `/clusters/${id}.glb`,
 }))
+
+export function createGalleryScene(
+  renderer: SceneRendererAdapter & ViewportRendererAdapter,
+  viewport: SceneViewport,
+  qualityWidth: number,
+): SceneGraph {
+  const profile = chooseQualityProfile({
+    width: qualityWidth,
+    devicePixelRatio: viewport.devicePixelRatio,
+  })
+  const graph = createSceneGraph(profile, viewport.width / viewport.height)
+  configureSceneRenderer(renderer)
+  resizeSceneViewport(renderer, graph.camera, profile, viewport)
+
+  const target = new THREE.Vector3(10, 0, 10)
+  const distance = 110
+  const horizontal = distance * Math.sin(Math.PI / 5)
+  graph.camera.position.set(
+    target.x + horizontal / Math.sqrt(2),
+    distance * Math.cos(Math.PI / 5),
+    target.z + horizontal / Math.sqrt(2),
+  )
+  graph.camera.lookAt(target)
+  graph.directionalLight.target.position.copy(target)
+  return graph
+}
 
 async function renderItem(item: GalleryItem, host: HTMLElement): Promise<void> {
   const card = document.createElement('article')
@@ -21,25 +57,11 @@ async function renderItem(item: GalleryItem, host: HTMLElement): Promise<void> {
 
   try {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-    renderer.outputColorSpace = THREE.SRGBColorSpace
-    renderer.shadowMap.enabled = true
-    renderer.setSize(canvas.width, canvas.height, false)
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x000000)
-    const camera = new THREE.PerspectiveCamera(40, canvas.width / canvas.height, 1, 500)
-    const target = new THREE.Vector3(10, 0, 10)
-    const distance = 110
-    const horizontal = distance * Math.sin(Math.PI / 5)
-    camera.position.set(
-      target.x + horizontal / Math.sqrt(2),
-      distance * Math.cos(Math.PI / 5),
-      target.z + horizontal / Math.sqrt(2),
-    )
-    camera.lookAt(target)
-    const sun = new THREE.DirectionalLight(0x9a9a9a, 1)
-    sun.position.set(-100, 250, -100)
-    sun.castShadow = true
-    scene.add(sun, new THREE.HemisphereLight(0xefefef, 0xffffff, 1))
+    const { scene, camera } = createGalleryScene(renderer, {
+      width: canvas.width,
+      height: canvas.height,
+      devicePixelRatio: window.devicePixelRatio,
+    }, window.innerWidth)
     const gltf = await new GLTFLoader().loadAsync(item.url)
     gltf.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
