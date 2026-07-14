@@ -7,6 +7,7 @@ import {
   loadAssetCatalogWithLoader,
   resolveBuildingFallbacks,
   resolveVehicleFallbacks,
+  TOTAL_ASSET_REQUESTS,
   type AssetProgress,
 } from '../src/rendering/assets'
 
@@ -24,7 +25,7 @@ const clusterPath = (filename: string): string => resolve(process.cwd(), 'js', '
 
 describe('existing asset disk contracts', () => {
   it('contains every unique building, road, and vehicle collection asset', () => {
-    expect(new Set(BUILDING_CATALOG.map(({ id }) => id)).size).toBe(15)
+    expect(new Set(BUILDING_CATALOG.map(({ id }) => id)).size).toBe(27)
 
     for (const { id } of BUILDING_CATALOG) {
       expect(existsSync(clusterPath(`${id}.glb`)), `${id}.glb`).toBe(true)
@@ -190,7 +191,7 @@ describe('asset loading contracts', () => {
     const first = await loadAssetCatalogWithLoader(loader)
     const second = await loadAssetCatalogWithLoader(loader)
 
-    expect(urls).toHaveLength(34)
+    expect(urls).toHaveLength(TOTAL_ASSET_REQUESTS * 2)
     expect(second).not.toBe(first)
     expect(second.road).not.toBe(first.road)
   })
@@ -216,7 +217,7 @@ describe('asset loading contracts', () => {
     expect(resolveVehicleFallbacks(null)).toEqual([])
   })
 
-  it('reports completion for each of the 17 one-time asset requests', async () => {
+  it('reports completion for every one-time asset request', async () => {
     const urls: string[] = []
     const progress: AssetProgress[] = []
     const loader = {
@@ -236,12 +237,16 @@ describe('asset loading contracts', () => {
 
     const catalog = await loadAssetCatalogWithLoader(loader, (event) => progress.push(event))
 
-    expect(urls).toHaveLength(17)
-    expect(new Set(urls).size).toBe(17)
+    expect(TOTAL_ASSET_REQUESTS).toBe(29)
+    expect(urls).toHaveLength(TOTAL_ASSET_REQUESTS)
+    expect(new Set(urls).size).toBe(TOTAL_ASSET_REQUESTS)
     expect(urls).toContain('/clusters/road.glb')
     expect(urls).toContain('/clusters/cars.gltf')
-    expect(progress).toHaveLength(17)
-    expect(progress.at(-1)).toMatchObject({ loaded: 17, total: 17 })
+    expect(progress).toHaveLength(TOTAL_ASSET_REQUESTS)
+    expect(progress.at(-1)).toMatchObject({
+      loaded: TOTAL_ASSET_REQUESTS,
+      total: TOTAL_ASSET_REQUESTS,
+    })
     expect(catalog.vehicleMetadata).toEqual([
       expect.objectContaining({ direction: 'east', length: 4 }),
     ])

@@ -10,7 +10,7 @@ import {
   type StartAppDependencies,
 } from '../src/app'
 import * as appModule from '../src/app'
-import type { AssetCatalog } from '../src/rendering/assets'
+import { TOTAL_ASSET_REQUESTS, type AssetCatalog } from '../src/rendering/assets'
 import type { SceneContext } from '../src/rendering/scene'
 import type { OverlayController } from '../src/ui/overlay'
 
@@ -536,6 +536,28 @@ describe('startApp setup cleanup', () => {
     expect(onError).not.toHaveBeenCalled()
     expect(scene.dispose).toHaveBeenCalledOnce()
     expect(overlay.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('restores the catalog-derived initial loading total before the first asset event', async () => {
+    const canvas = document.createElement('canvas')
+    const overlay = createOverlayHarness()
+    const scene = createRunnableScene()
+    const stop = new Error('stop pending asset load')
+    let rejectAssets: (error: Error) => void = () => undefined
+    const appPromise = startApp({
+      canvas,
+      overlay: overlay as unknown as OverlayController,
+    }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: () => new Promise((_, reject) => { rejectAssets = reject }),
+    })
+
+    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
+    canvas.dispatchEvent(new Event('webglcontextrestored'))
+    expect(overlay.showLoading).toHaveBeenCalledWith(0, TOTAL_ASSET_REQUESTS)
+
+    rejectAssets(stop)
+    await expect(appPromise).rejects.toBe(stop)
   })
 
   it('defers loading progress UI until pending bootstrap returns from BFCache', async () => {

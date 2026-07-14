@@ -10,12 +10,18 @@ describe('chooseTile', () => {
 
   it('uses only existing unique building assets and quarter turns', () => {
     const ids = new Set(BUILDING_CATALOG.map((entry) => entry.id))
-    expect(ids.size).toBe(15)
+    expect(ids.size).toBe(27)
     for (let x = -20; x <= 20; x += 1) {
       const tile = chooseTile({ x, z: x * -3 }, 0x5eedc17)
       expect(ids.has(tile.building)).toBe(true)
       expect([0, 1, 2, 3]).toContain(tile.rotation)
     }
+  })
+
+  it('contains all curated remix IDs with positive weights', () => {
+    const remix = BUILDING_CATALOG.filter(({ id }) => id.startsWith('remix-'))
+    expect(remix).toHaveLength(12)
+    expect(remix.every(({ weight }) => Number.isInteger(weight) && weight > 0)).toBe(true)
   })
 
   it('does not collapse negative coordinates onto positive ones', () => {
@@ -38,6 +44,6 @@ describe('chooseTile', () => {
       counts.set(id, (counts.get(id) ?? 0) + 1)
     }
     expect(counts.get('stadium') ?? 0).toBeLessThan(counts.get('house') ?? 0)
-    expect(counts.size).toBe(15)
+    expect(counts.size).toBe(27)
   })
 })

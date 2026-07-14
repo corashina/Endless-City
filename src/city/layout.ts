@@ -22,6 +22,18 @@ export const BUILDING_CATALOG = [
   { id: 'shops', weight: 6 },
   { id: 'stadium', weight: 1 },
   { id: 'supermarket', weight: 4 },
+  { id: 'remix-residential-court', weight: 6 },
+  { id: 'remix-residential-towers', weight: 4 },
+  { id: 'remix-residential-garden', weight: 6 },
+  { id: 'remix-residential-row', weight: 6 },
+  { id: 'remix-commercial-market', weight: 4 },
+  { id: 'remix-commercial-cafes', weight: 4 },
+  { id: 'remix-commercial-shops', weight: 4 },
+  { id: 'remix-commercial-services', weight: 3 },
+  { id: 'remix-mixed-main-street', weight: 3 },
+  { id: 'remix-mixed-neighborhood', weight: 4 },
+  { id: 'remix-civic-plaza', weight: 1 },
+  { id: 'remix-park-corner', weight: 5 },
 ] as const satisfies readonly BuildingCatalogEntry[]
 
 const TOTAL_WEIGHT = BUILDING_CATALOG.reduce((sum, entry) => sum + entry.weight, 0)
