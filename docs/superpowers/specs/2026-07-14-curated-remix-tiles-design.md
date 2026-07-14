@@ -84,7 +84,7 @@ The 12 IDs use stable, descriptive names:
 - `remix-commercial-services` combines auto-service and gas-station modules;
 - `remix-mixed-main-street` combines one residential building with two shops;
 - `remix-mixed-neighborhood` combines one small apartment building, a cafe, and a shop;
-- `remix-civic-plaza` reuses the stadium with a new surface and prop arrangement;
+- `remix-civic-plaza` uses the small-sky building as a civic office with concrete, benches, and trees;
 - `remix-park-corner` combines existing grass, trees, bushes, rocks, fences, and benches.
 
 Recipe transforms determine the exact layout. Visual review may change positions and quarter turns, but the batch size, tile IDs, categories, and source-only asset rule stay fixed.
