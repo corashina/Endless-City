@@ -3,3 +3,4 @@ node_modules/
 dist/
 .codex-http.*
 .superpowers/
+.worktrees/
