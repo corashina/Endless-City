@@ -19,6 +19,8 @@ export type LockedCameraControls = Pick<
   | 'enableRotate'
   | 'enablePan'
   | 'enableZoom'
+  | 'enableDamping'
+  | 'dampingFactor'
   | 'touches'
   | 'update'
 >
@@ -33,6 +35,8 @@ export function configureLockedLegacyCamera(controls: LockedCameraControls): voi
   controls.enableRotate = false
   controls.enablePan = true
   controls.enableZoom = true
+  controls.enableDamping = true
+  controls.dampingFactor = 0.08
   controls.touches.ONE = THREE.TOUCH.PAN
   controls.touches.TWO = THREE.TOUCH.DOLLY_PAN
   controls.update()
@@ -94,13 +98,13 @@ export function disposeSceneResources(
 
 export function createSceneGraph(profile: QualityProfile, aspect: number): SceneGraph {
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x000000)
-  scene.fog = new THREE.Fog(0x000000, FOG_NEAR, FOG_FAR)
+  scene.background = new THREE.Color(0xd7e5ee)
+  scene.fog = new THREE.Fog(0xd7e5ee, FOG_NEAR, FOG_FAR)
 
   const camera = new THREE.PerspectiveCamera(40, aspect, 1, 500)
   camera.position.set(10, 100, 10)
 
-  const directionalLight = new THREE.DirectionalLight(0x9a9a9a, 1)
+  const directionalLight = new THREE.DirectionalLight(0xfff1cf, 1.6)
   directionalLight.position.set(-300, 750, -300)
   directionalLight.castShadow = true
   directionalLight.shadow.mapSize.set(profile.shadowMapSize, profile.shadowMapSize)
@@ -112,7 +116,7 @@ export function createSceneGraph(profile: QualityProfile, aspect: number): Scene
   directionalLight.shadow.camera.bottom = -SHADOW_RADIUS
   directionalLight.shadow.camera.updateProjectionMatrix()
 
-  const hemisphereLight = new THREE.HemisphereLight(0xefefef, 0xffffff, 1)
+  const hemisphereLight = new THREE.HemisphereLight(0xe7f2ff, 0xb9aa8f, 1.25)
   scene.add(directionalLight, directionalLight.target, hemisphereLight)
 
   return { scene, camera, directionalLight, hemisphereLight }
