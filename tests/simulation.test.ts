@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { BLOCK_SIZE, FIXED_STEP_SECONDS } from '../src/config'
 import { occupiedIntersectionKeys } from '../src/traffic/intersections'
@@ -93,6 +94,12 @@ const assertNoSharedMovementZone = (vehicles: readonly VehicleState[]): void => 
     }
   }
 }
+
+const completeSimulationStatesEqual = (
+  left: TrafficSimulation,
+  right: TrafficSimulation,
+): boolean => isDeepStrictEqual(left.vehicles, right.vehicles)
+  && isDeepStrictEqual(left.reservations, right.reservations)
 
 describe('traffic simulation', () => {
   it('recognizes the trailing half of an occupied intersection zone', () => {
@@ -280,6 +287,10 @@ describe('traffic simulation', () => {
       simulation.step(FIXED_STEP_SECONDS, camera)
       duplicate.step(FIXED_STEP_SECONDS, camera)
 
+      if (!completeSimulationStatesEqual(simulation, duplicate)) {
+        throw new Error(`Duplicate simulation state diverged at step ${step}`)
+      }
+
       if (simulation.vehicles.length !== 72) {
         throw new Error(`Traffic pool changed length at step ${step}`)
       }
@@ -324,5 +335,5 @@ describe('traffic simulation', () => {
 
     expect(simulation.vehicles).toEqual(duplicate.vehicles)
     expect([...simulation.reservations]).toEqual([...duplicate.reservations])
-  }, 60_000)
+  }, 120_000)
 })
