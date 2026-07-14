@@ -134,8 +134,9 @@ describe('movement conflict zones', () => {
     const requester = vehicleApproaching('east', 'left', { id: 1, progress: -31 })
     const reservations = new Map()
     updateMovementReservations([requester], reservations, config, 0)
-    updateMovementReservations([requester], reservations, config, 121)
+    const expired = updateMovementReservations([requester], reservations, config, 121)
     expect(requester.ownedZoneKeys).toEqual([])
+    expect(expired.stops.get(requester.id)).toBe(requester.plannedMovement!.entryProgress)
 
     updateMovementReservations([requester], reservations, config, 122)
     requester.turn = { movement: requester.plannedMovement!, distance: 1 }

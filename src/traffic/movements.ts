@@ -131,6 +131,7 @@ export function updateMovementReservations(
     laneVehicles.sort((left, right) => left.progress - right.progress || left.id - right.id)
   }
   const expiredVehicleIds = new Set<number>()
+  const stops = new Map<number, number>()
 
   for (const vehicle of vehicles) {
     if (vehicle.ownedZoneKeys.length === 0) {
@@ -147,7 +148,12 @@ export function updateMovementReservations(
       || enteredMovementCleared(vehicle)
 
     if (!release) continue
-    if (grantExpired) expiredVehicleIds.add(vehicle.id)
+    if (grantExpired) {
+      expiredVehicleIds.add(vehicle.id)
+      if (vehicle.active && vehicle.plannedMovement !== null) {
+        stops.set(vehicle.id, vehicle.plannedMovement.entryProgress)
+      }
+    }
     releaseOwnedZones(vehicle, reservations)
   }
 
@@ -193,8 +199,6 @@ export function updateMovementReservations(
     || left.distanceToEntry - right.distanceToEntry
     || left.vehicle.id - right.vehicle.id,
   )
-
-  const stops = new Map<number, number>()
 
   for (const request of requests) {
     const blocked = outgoingLaneBlocked(request, vehiclesByLane)
