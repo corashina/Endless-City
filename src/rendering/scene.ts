@@ -5,6 +5,39 @@ import type { QualityProfile } from './quality'
 
 const SHADOW_RADIUS = 180
 
+export const LOCKED_CAMERA_POLAR_ANGLE = Math.PI / 5
+export const LOCKED_CAMERA_AZIMUTH_ANGLE = Math.PI / 4
+
+export type LockedCameraControls = Pick<
+  MapControls,
+  | 'minPolarAngle'
+  | 'maxPolarAngle'
+  | 'minAzimuthAngle'
+  | 'maxAzimuthAngle'
+  | 'minDistance'
+  | 'maxDistance'
+  | 'enableRotate'
+  | 'enablePan'
+  | 'enableZoom'
+  | 'touches'
+  | 'update'
+>
+
+export function configureLockedLegacyCamera(controls: LockedCameraControls): void {
+  controls.minPolarAngle = LOCKED_CAMERA_POLAR_ANGLE
+  controls.maxPolarAngle = LOCKED_CAMERA_POLAR_ANGLE
+  controls.minAzimuthAngle = LOCKED_CAMERA_AZIMUTH_ANGLE
+  controls.maxAzimuthAngle = LOCKED_CAMERA_AZIMUTH_ANGLE
+  controls.minDistance = 100
+  controls.maxDistance = 125
+  controls.enableRotate = false
+  controls.enablePan = true
+  controls.enableZoom = true
+  controls.touches.ONE = THREE.TOUCH.PAN
+  controls.touches.TWO = THREE.TOUCH.DOLLY_PAN
+  controls.update()
+}
+
 export interface SceneGraph {
   readonly scene: THREE.Scene
   readonly camera: THREE.PerspectiveCamera
@@ -104,7 +137,7 @@ export function createScene(canvas: HTMLCanvasElement, profile: QualityProfile):
   })
 
   const controls = new MapControls(graph.camera, canvas)
-  controls.update()
+  configureLockedLegacyCamera(controls)
 
   return {
     ...graph,

@@ -37,7 +37,7 @@
 - Consumes: `THREE.TOUCH`, Three.js `MapControls`, and the existing `createScene()` construction path.
 - Produces: `LOCKED_CAMERA_POLAR_ANGLE`, `LOCKED_CAMERA_AZIMUTH_ANGLE`, and `configureLockedLegacyCamera(controls: LockedCameraControls): void`.
 
-- [ ] **Step 1: Write failing configuration and behavior tests**
+- [x] **Step 1: Write failing configuration and behavior tests**
 
 Create `tests/scene-controls.test.ts` with jsdom so the real controls can attach to a canvas:
 
@@ -114,7 +114,7 @@ describe('configureLockedLegacyCamera', () => {
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -124,7 +124,7 @@ bun run test -- tests/scene-controls.test.ts
 
 Expected: FAIL because the three locked-camera exports do not exist.
 
-- [ ] **Step 3: Implement the minimal controls-layer configuration**
+- [x] **Step 3: Implement the minimal controls-layer configuration**
 
 Add the constants, narrow adapter, and helper near the top of `src/rendering/scene.ts`:
 
@@ -170,7 +170,7 @@ const controls = new MapControls(graph.camera, canvas)
 configureLockedLegacyCamera(controls)
 ```
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run:
 
@@ -180,7 +180,7 @@ bun run test -- tests/scene-controls.test.ts tests/city-view.test.ts tests/app.t
 
 Expected: the new controls tests and existing camera/lifecycle tests pass.
 
-- [ ] **Step 5: Run the complete automated gate**
+- [x] **Step 5: Run the complete automated gate**
 
 Run:
 
