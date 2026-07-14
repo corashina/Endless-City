@@ -43,7 +43,7 @@ MapControls derives a ground-plane reference when a pointer gesture starts. To k
 
 `src/rendering/assets.ts` requests the road, 15 building prototypes, and `cars.gltf` once. Source assets remain in `js/clusters/`; `vite.config.ts` treats `js/` as the public directory, so development and production both serve them from `/clusters/`. Building scenes are cached and cloned into tile slots. A failed building uses the existing park prototype when available, then an empty plot; the required road has no silent fallback.
 
-Each directed root in `cars.gltf` becomes a vehicle prototype. The loader validates direction extras as one of `(1, 0)`, `(-1, 0)`, `(0, 1)`, or `(0, -1)`, measures length from its bounds, and exposes immutable metadata to the simulation. `src/rendering/traffic-view.ts` allocates one render slot per simulation slot and interpolates between previous/current progress. A recycled slot may exchange its cloned prototype, but the slot count remains fixed.
+Each directed root in `cars.gltf` becomes a vehicle prototype. The loader validates direction extras as one of `(1, 0)`, `(-1, 0)`, `(0, 1)`, or `(0, -1)`, measures length from its bounds, and exposes immutable metadata to the simulation. `src/rendering/traffic-view.ts` allocates one render slot per simulation slot and interpolates between the previous and current route poses. It uses shortest-angle heading interpolation through turns and rotates each model relative to its authored native direction. A recycled slot may exchange its cloned prototype, but the slot count remains fixed.
 
 If no valid vehicle metadata is available, `src/app.ts` constructs neither `TrafficSimulation` nor `TrafficView`. The city, camera, controls, lighting, overlay, and render loop continue without a traffic pool.
 
@@ -53,15 +53,23 @@ If no valid vehicle metadata is available, `src/app.ts` constructs neither `Traf
 
 `src/traffic/lanes.ts` represents each straight road as a direction plus an integer line. Scalar progress always increases. East/south use the authored `-16` transverse offset; west/north use `-23`. Direction alone maps progress onto positive or negative X/Z, eliminating parent-transform corrections.
 
-`src/app.ts` feeds elapsed render time to `consumeFixedSteps`. The accumulator caps long frames at 0.1 seconds and advances `TrafficSimulation` at exactly 1/60 second per step. `src/traffic/following.ts` groups active vehicles by lane, orders them by progress, applies minimum-gap/time-headway acceleration and braking, and clamps progress so a follower cannot cross its leader. Rendering interpolation affects presentation only.
+`src/app.ts` feeds elapsed render time to `consumeFixedSteps`. The accumulator caps long frames at 0.1 seconds and advances `TrafficSimulation` at exactly 1/60 second per step. Each lifecycle derives a driver's profile, cruise speed, acceleration, braking, time headway, and minimum gap from stateless hashes of the world seed, vehicle ID, lifecycle, and property salt. Route choices use a base distribution of 55% straight, 22.5% left, and 22.5% right. Cautious and assertive profiles move the straight share by at most 10 percentage points while keeping the remaining probability evenly divided between left and right.
 
-### Intersection reservations
+`src/traffic/following.ts` groups active vehicles by directed lane and movement, orders them by route progress, and follows the nearest physical leader. Each driver computes a personal target gap from its minimum gap plus speed multiplied by time headway. Closing speed and available gap determine whether comfortable or emergency stopping-distance braking applies. A final route-progress clamp preserves bumper separation, including while a vehicle merges from a turn onto its outgoing lane.
 
-Crossing centers repeat every 60 units with the road asset’s `-20` offset. `src/traffic/intersections.ts` gives each conflict zone at most one reservation. Approaching vehicles are ordered by distance to the stop line, then stable vehicle ID; the winner holds the reservation until its rear bumper leaves the zone. A loser treats the stop line as a zero-speed logical leader. Perpendicular traffic therefore cannot occupy the same conflict zone.
+`src/traffic/routing.ts` plans straight, left, and right movements from the arithmetic street grid. Left and right turns are smooth cubic curves whose endpoints and tangents match the authored incoming and outgoing lane centerlines. Vehicles retain their model while route position and heading interpolate through the turn, then continue on the selected outgoing lane.
+
+### Intersection movement grants
+
+Crossing centers repeat every 60 units with the road asset's `-20` offset. `src/traffic/movements.ts` samples each movement's literal swept corridor at half-unit intervals and maps the vehicle-width offsets into fixed two-unit conflict-zone cells. The allocator grants every zone required by a movement atomically, so compatible movements may proceed together while movements with any shared zone serialize.
+
+A request is eligible inside the 20-unit look-ahead only when all required zones are free and the outgoing lane has clearance for the vehicle plus its personal minimum gap. Eligible requests sort by longest accumulated wait, then distance to entry, then stable vehicle ID. This wait-based fairness prevents a repeatedly blocked direction from starving. A pre-entry grant expires unused after 120 fixed steps, equal to two seconds; an entered vehicle retains its zones until its rear bumper clears the swept movement. A blocked or losing vehicle treats the entry line as a zero-speed logical leader.
 
 ### Hidden recycling
 
-`src/traffic/spawning.ts` keeps the simulation centered around the logical camera. Production uses the 300-unit fog-far distance as the protected radius and a 420-unit simulation radius, adding a two-block buffer. An active vehicle is not removed until it is beyond 420 units. Deterministic replacement candidates must be farther than 300 units, outside all visible fog, and are accepted only when front/rear gaps and intersection occupancy are safe. If no candidate is safe, the slot becomes inactive and retries later. Recycling cannot be visible and never changes the number of simulation or render slots.
+`src/traffic/spawning.ts` keeps the simulation centered around the logical camera. Production uses the 300-unit fog-far distance as the protected radius and a 420-unit simulation radius, adding a two-block buffer. An active vehicle is normally removed only after it passes 420 units. As a deadlock safeguard, an off-screen vehicle below 0.25 units per second for 720 fixed steps, equal to 12 seconds, is also recycled. Entering the protected radius or resuming motion resets that timer, so a visible car never recycles or teleports.
+
+Deterministic replacement candidates start outside the protected radius on an approach route that crosses it, and are accepted only when personal front/rear gaps and intersection occupancy are safe. If no candidate is safe, the slot remains inactive and retries later. Stationary-camera coverage runs the 72-car profile for 216,000 fixed steps; after an 18,000-step warm-up, every 3,600-step sample must retain all 72 active slots, at least 18 visible cars, and at least 11 visible cars moving faster than 0.25 units per second. The 36,000-step moving-camera regression requires at least 18 visible cars at each one-minute sample and all four visible directions in every one-minute window.
 
 ## Quality profiles
 
@@ -69,9 +77,9 @@ Crossing centers repeat every 60 units with the road asset’s `-20` offset. `sr
 
 | Profile | Selection | Tile window | Vehicle slots | Pixel-ratio cap | Shadow map |
 | --- | --- | ---: | ---: | ---: | ---: |
-| High | width ≥ 1200 and DPR ≤ 2 | 9×9 | 49 | 1.5 | 2048 |
-| Balanced | width 768–1199 or DPR > 2 | 7×7 | 32 | 1.25 | 1024 |
-| Mobile | width < 768 | 7×7 | 20 | 1 | 1024 |
+| High | width ≥ 1200 and DPR ≤ 2 | 9×9 | 72 | 1.5 | 2048 |
+| Balanced | width 768–1199 or DPR > 2 | 7×7 | 48 | 1.25 | 1024 |
+| Mobile | width < 768 | 7×7 | 28 | 1 | 1024 |
 
 Every traffic profile includes all four directions. `src/rendering/scene.ts` uses modern sRGB output, capped pixel ratio, fog, and profile-sized soft shadows.
 
@@ -95,7 +103,7 @@ Debug-only `acceptanceX` and `acceptanceZ` query parameters select an exact star
 
 ## Non-goals
 
-- Turning vehicles, pedestrians, traffic lights, and public-transport behavior.
+- Pedestrians, traffic lights, and public-transport behavior.
 - Saved worlds, user-generated layouts, multiplayer, or server persistence.
 - Procedural geometry or new visual assets.
 - Day/night cycles, weather, interiors, or free-flight controls.
