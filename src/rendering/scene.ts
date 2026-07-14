@@ -60,6 +60,14 @@ export interface ViewportRendererAdapter {
   setSize(width: number, height: number, updateStyle?: boolean): void
 }
 
+export interface SceneRendererAdapter {
+  outputColorSpace: string
+  shadowMap: {
+    enabled: boolean
+    type: THREE.ShadowMapType
+  }
+}
+
 export interface ViewportCameraAdapter {
   aspect: number
   updateProjectionMatrix(): void
@@ -96,6 +104,11 @@ export function resizeSceneViewport(
   renderer.setSize(viewport.width, viewport.height, false)
   camera.aspect = viewport.width / viewport.height
   camera.updateProjectionMatrix()
+}
+
+export function configureSceneRenderer(renderer: SceneRendererAdapter): void {
+  renderer.outputColorSpace = THREE.SRGBColorSpace
+  configureSoftShadows(renderer.shadowMap)
 }
 
 export function disposeSceneResources(
@@ -141,8 +154,7 @@ export function createScene(canvas: HTMLCanvasElement, profile: QualityProfile):
     antialias: true,
     powerPreference: 'high-performance',
   })
-  renderer.outputColorSpace = THREE.SRGBColorSpace
-  configureSoftShadows(renderer.shadowMap)
+  configureSceneRenderer(renderer)
   resizeSceneViewport(renderer, graph.camera, profile, {
     width,
     height,

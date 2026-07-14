@@ -7,9 +7,12 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "tiles:build": "bun tools/tiles/build-tiles.ts"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/functions": "^4.3.0",
     "@types/node": "^26.1.1",
     "@types/three": "^0.185.1",
     "jsdom": "^29.1.1",

@@ -41,7 +41,11 @@ MapControls derives a ground-plane reference when a pointer gesture starts. To k
 
 ## Asset and view lifecycle
 
-`src/rendering/assets.ts` requests the road, 15 building prototypes, and `cars.gltf` once. Source assets remain in `js/clusters/`; `vite.config.ts` treats `js/` as the public directory, so development and production both serve them from `/clusters/`. Building scenes are cached and cloned into tile slots. A failed building uses the existing park prototype when available, then an empty plot; the required road has no silent fallback.
+`src/rendering/assets.ts` requests the road, 27 building prototypes, and `cars.gltf` once. The 15 original runtime tiles and 12 curated `remix-*.glb` tiles live in `js/clusters/`; `vite.config.ts` serves that directory at `/clusters/`. Building scenes are cached and cloned into tile slots. A failed building uses the existing park prototype when available, then an empty plot; the required road has no silent fallback.
+
+The original separable models live in `js/gltf/`. `tools/tiles/` uses named source nodes and validated 40-by-40 recipes to regenerate the 12 committed remix GLBs with `bun run tiles:build`. The browser never assembles tile recipes. The local `/tools/tiles/gallery.html` page displays all remix outputs for visual review during development.
+
+This repository has no separate asset-license file. Before publishing redistributed derivatives outside this repository, maintainers must confirm the provenance of the original model files.
 
 Each directed root in `cars.gltf` becomes a vehicle prototype. The loader validates direction extras as one of `(1, 0)`, `(-1, 0)`, `(0, 1)`, or `(0, -1)`, measures length from its bounds, and exposes immutable metadata to the simulation. `src/rendering/traffic-view.ts` allocates one render slot per simulation slot and interpolates between previous/current progress. A recycled slot may exchange its cloned prototype, but the slot count remains fixed.
 

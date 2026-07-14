@@ -6,12 +6,12 @@ import type { BuildingId } from '../city/types'
 import type { Direction, VehiclePrototypeMetadata } from '../traffic/types'
 
 const ASSET_BASE_URL = '/clusters'
-const TOTAL_ASSET_REQUESTS = 17
+export const TOTAL_ASSET_REQUESTS = BUILDING_CATALOG.length + 2
 const DIRECTIONS: readonly Direction[] = ['east', 'west', 'north', 'south']
 
 export interface AssetProgress {
   readonly loaded: number
-  readonly total: 17
+  readonly total: number
   readonly url: string
 }
 

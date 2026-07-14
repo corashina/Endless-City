@@ -13,7 +13,11 @@ import {
   createCloudLayer as createCloudLayerView,
   type CloudLayerController,
 } from './rendering/cloud-layer'
-import { loadAssetCatalog as loadAssets, type AssetCatalog } from './rendering/assets'
+import {
+  loadAssetCatalog as loadAssets,
+  TOTAL_ASSET_REQUESTS,
+  type AssetCatalog,
+} from './rendering/assets'
 import { chooseQualityProfile } from './rendering/quality'
 import { createScene as createSceneContext } from './rendering/scene'
 import { TrafficView } from './rendering/traffic-view'
@@ -267,7 +271,7 @@ export async function startApp(
   let contextLossCount = 0
   let recoveryTimer: number | undefined
   let bootstrapReady = false
-  let lastLoadingProgress = { loaded: 0, total: 17 }
+  let lastLoadingProgress = { loaded: 0, total: TOTAL_ASSET_REQUESTS }
   let bootstrapBfcacheSuspended = false
   let bootstrapProgressDeferred = false
   const recoveryIsTerminal = (): boolean => recoveryState === 'terminal'

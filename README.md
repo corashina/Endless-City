@@ -35,6 +35,7 @@ Vite prints the local URL. Open it in the browser; source edits reload automatic
 Run each project gate independently:
 
 ```powershell
+bun run tiles:build
 bun run typecheck
 bun run test
 bun run build
@@ -51,13 +52,16 @@ The build command runs strict TypeScript checking and emits a production site to
 - `src/ui/` — loading, recovery, and failure states shown only while the scene is unavailable.
 - `src/app.ts` and `src/main.ts` — application lifecycle and browser bootstrap.
 - `tests/` — deterministic unit, integration, lifecycle, and existing-asset contract tests.
-- `js/clusters/` — the original GLTF/GLB visual assets reused by the redesign.
+- `js/clusters/` — original runtime assets plus the 12 repository-derived remix GLBs.
+- `tools/tiles/` — validated recipes, offline GLB compiler, and local review gallery.
 - `docs/architecture.md` — maintainer guide to streaming, traffic, rendering, and errors.
 - `docs/legacy-audit.md` — original failure analysis and replacement invariants.
 
 ## Asset constraint
 
-The city and vehicle visuals continue to use the existing files in `js/clusters/`. The only runtime-generated visual is the bounded five-cloud low-poly atmosphere built from shared Three.js primitives; it adds no image, texture, model, or network asset. `preview.png` remains the project preview.
+The city and vehicle visuals use the repository assets in `js/clusters/`. The original separable sources live in `js/gltf/`; twelve `remix-*.glb` tiles derive only from those source models through `bun run tiles:build`. The only runtime-generated visual is the bounded five-cloud low-poly atmosphere built from shared Three.js primitives; it adds no image, texture, model, or network asset. `preview.png` remains the project preview.
+
+Do not import new models, generate new geometry, or add texture artwork without an explicit project-direction change. Before redistributing model derivatives outside this repository, confirm the provenance of the original model files.
 
 ## License
 
