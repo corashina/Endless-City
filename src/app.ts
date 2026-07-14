@@ -484,18 +484,22 @@ export async function startApp(
         return
       }
 
+      const frameSeconds = previousTimestamp === undefined
+        ? 0
+        : (timestamp - previousTimestamp) / 1_000
+      previousTimestamp = timestamp
       const cameraState = cameraController.update()
       currentCameraState = cameraState
-      activeCloudLayer.update(cameraState.logicalCamera, cameraState.origin)
+      activeCloudLayer.update(
+        cameraState.logicalCamera,
+        cameraState.origin,
+        Math.min(Math.max(frameSeconds, 0), MAX_FRAME_SECONDS),
+      )
       cityView.update(
         centerGridCell(cameraState.logicalCamera.x, cameraState.logicalCamera.z),
         cameraState.origin,
       )
 
-      const frameSeconds = previousTimestamp === undefined
-        ? 0
-        : (timestamp - previousTimestamp) / 1_000
-      previousTimestamp = timestamp
       if (traffic !== undefined && trafficView !== undefined) {
         const stepResult = consumeFixedSteps(
           accumulator,

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   CLOUD_CLEAR_RADIUS,
   CLOUD_COUNT,
+  CLOUD_DRIFT_SPEED,
   CLOUD_WRAP_RADIUS,
   CloudLayer,
   wrapCloudPosition,
@@ -47,7 +48,7 @@ describe('CloudLayer', () => {
   it('wraps around the logical camera and projects through the render origin', () => {
     const layer = new CloudLayer(new THREE.Scene())
 
-    layer.update({ x: 500, z: 0 }, { x: 480, z: -120 })
+    layer.update({ x: 500, z: 0 }, { x: 480, z: -120 }, 0)
 
     for (const cloud of layer.root.children) {
       const logical = cloud.userData.logicalPosition as { x: number; z: number }
@@ -57,6 +58,30 @@ describe('CloudLayer', () => {
     }
   })
 
+  it('drifts every cloud east at a frame-rate-independent speed', () => {
+    const singleStep = new CloudLayer(new THREE.Scene())
+    const splitStep = new CloudLayer(new THREE.Scene())
+    const singleStart = singleStep.root.children.map((cloud) =>
+      (cloud.userData.logicalPosition as { x: number }).x,
+    )
+
+    singleStep.update({ x: 0, z: 0 }, { x: 0, z: 0 }, 1)
+    splitStep.update({ x: 0, z: 0 }, { x: 0, z: 0 }, 0.5)
+    splitStep.update({ x: 0, z: 0 }, { x: 0, z: 0 }, 0.5)
+
+    expect(CLOUD_DRIFT_SPEED).toBe(1.5)
+    singleStep.root.children.forEach((cloud, index) => {
+      const single = cloud.userData.logicalPosition as { x: number; z: number }
+      const split = splitStep.root.children[index]!.userData.logicalPosition as {
+        x: number
+        z: number
+      }
+      expect(single.x).toBeCloseTo(singleStart[index]! + CLOUD_DRIFT_SPEED, 10)
+      expect(single.x).toBeCloseTo(split.x, 10)
+      expect(single.z).toBeCloseTo(split.z, 10)
+    })
+  })
+
   it('keeps logical position identities stable across updates and wrapping', () => {
     const layer = new CloudLayer(new THREE.Scene())
     const logicalPositions = layer.root.children.map((cloud) =>
@@ -64,14 +89,14 @@ describe('CloudLayer', () => {
     )
     const initialCoordinates = logicalPositions.map((position) => ({ ...position }))
 
-    layer.update({ x: 0, z: 0 }, { x: 25, z: -40 })
+    layer.update({ x: 0, z: 0 }, { x: 25, z: -40 }, 0)
 
     layer.root.children.forEach((cloud, index) => {
       expect(cloud.userData.logicalPosition).toBe(logicalPositions[index])
     })
     expect(logicalPositions).toEqual(initialCoordinates)
 
-    layer.update({ x: 500, z: 0 }, { x: 480, z: -120 })
+    layer.update({ x: 500, z: 0 }, { x: 480, z: -120 }, 300)
 
     layer.root.children.forEach((cloud, index) => {
       expect(cloud.userData.logicalPosition).toBe(logicalPositions[index])

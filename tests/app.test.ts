@@ -263,9 +263,17 @@ describe('owned application lifecycle', () => {
     frame?.(0)
 
     expect(createCloudLayer).toHaveBeenCalledWith(scene.context.scene)
-    expect(cloudLayer.update).toHaveBeenCalledWith(
+    expect(cloudLayer.update).toHaveBeenLastCalledWith(
       { x: 10, z: 10 },
       { x: 0, z: 0 },
+      0,
+    )
+
+    frame?.(1_000)
+    expect(cloudLayer.update).toHaveBeenLastCalledWith(
+      { x: 10, z: 10 },
+      { x: 0, z: 0 },
+      0.1,
     )
 
     handle.dispose()

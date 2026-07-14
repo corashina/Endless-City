@@ -3,6 +3,7 @@ import type { WorldPoint } from '../city/types'
 
 export const CLOUD_COUNT = 5
 export const CLOUD_CLEAR_RADIUS = 70
+export const CLOUD_DRIFT_SPEED = 1.5
 export const CLOUD_WRAP_RADIUS = 210
 const CLOUD_REENTRY_RADIUS = 190
 
@@ -41,7 +42,7 @@ export function wrapCloudPosition(
 }
 
 export interface CloudLayerController {
-  update(logicalCamera: WorldPoint, origin: WorldPoint): void
+  update(logicalCamera: WorldPoint, origin: WorldPoint, deltaSeconds: number): void
   dispose(): void
 }
 
@@ -80,12 +81,13 @@ export class CloudLayer implements CloudLayerController {
       }
     })
     scene.add(this.root)
-    this.update({ x: 0, z: 0 }, { x: 0, z: 0 })
+    this.update({ x: 0, z: 0 }, { x: 0, z: 0 }, 0)
   }
 
-  update(logicalCamera: WorldPoint, origin: WorldPoint): void {
+  update(logicalCamera: WorldPoint, origin: WorldPoint, deltaSeconds: number): void {
     if (this.disposed) return
     for (const [index, cloud] of this.clouds.entries()) {
+      cloud.logicalPosition.x += CLOUD_DRIFT_SPEED * Math.max(0, deltaSeconds)
       const wrappedPosition = wrapCloudPosition(cloud.logicalPosition, logicalCamera, index)
       if (wrappedPosition !== cloud.logicalPosition) {
         cloud.logicalPosition.x = wrappedPosition.x

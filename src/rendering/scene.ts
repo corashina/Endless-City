@@ -69,6 +69,16 @@ export interface DisposableSceneResource {
   dispose(): void
 }
 
+export interface ShadowMapAdapter {
+  enabled: boolean
+  type: number
+}
+
+export function configureSoftShadows(shadowMap: ShadowMapAdapter): void {
+  shadowMap.enabled = true
+  shadowMap.type = THREE.PCFSoftShadowMap
+}
+
 export interface SceneContext extends SceneGraph {
   readonly renderer: THREE.WebGLRenderer
   readonly controls: MapControls
@@ -132,8 +142,7 @@ export function createScene(canvas: HTMLCanvasElement, profile: QualityProfile):
     powerPreference: 'high-performance',
   })
   renderer.outputColorSpace = THREE.SRGBColorSpace
-  renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFShadowMap
+  configureSoftShadows(renderer.shadowMap)
   resizeSceneViewport(renderer, graph.camera, profile, {
     width,
     height,

@@ -4,10 +4,22 @@ import * as THREE from 'three'
 import { MapControls } from 'three/addons/controls/MapControls.js'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  configureSoftShadows,
   configureLockedLegacyCamera,
   LOCKED_CAMERA_AZIMUTH_ANGLE,
   LOCKED_CAMERA_POLAR_ANGLE,
 } from '../src/rendering/scene'
+
+describe('configureSoftShadows', () => {
+  it('enables soft percentage-closer shadow filtering', () => {
+    const shadowMap = { enabled: false, type: THREE.BasicShadowMap }
+
+    configureSoftShadows(shadowMap)
+
+    expect(shadowMap.enabled).toBe(true)
+    expect(shadowMap.type).toBe(THREE.PCFSoftShadowMap)
+  })
+})
 
 const controlsToDispose: MapControls[] = []
 
