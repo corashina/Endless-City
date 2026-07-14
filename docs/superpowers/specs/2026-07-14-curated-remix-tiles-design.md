@@ -56,7 +56,7 @@ The compiler normalizes each module to an anchor before it applies a recipe plac
 
 - buildings use the horizontal center of their world-space bounding box at ground level;
 - trees, benches, signs, fences, and parked vehicles use the same bottom-center rule;
-- 20-by-20 surface pieces retain their authored cell-center pivot.
+- full-plot surface pieces use the bottom-center rule.
 
 The catalog records an explicit footprint for validation. The implementation measures the copied geometry and checks it against that footprint, with a small numeric tolerance. A source-asset change that exceeds the declared footprint causes the build to fail.
 
@@ -66,9 +66,9 @@ Recipes use integer or half-unit X/Z positions, Y position zero, and quarter-tur
 
 The city keeps its 60-unit block spacing. Each recipe occupies the authored 40-by-40 plot envelope from `-10` through `30` on X and Z. `CityView` continues to apply the existing whole-tile rotations and 0/20-unit correction.
 
-Each tile starts with four 20-by-20 surface cells centered at `(0, 0)`, `(20, 0)`, `(0, 20)`, and `(20, 20)`. Recipes choose existing grass, concrete, or road-surface modules for those cells. They do not include the global perimeter road mesh.
+Each tile starts with one existing 40-by-40 grass, concrete, or road-surface module normalized to its bottom center and placed at `(10, 10)`. Recipes do not include the global perimeter road mesh.
 
-The validator rotates every declared footprint around its module anchor, translates it into plot coordinates, and checks the result against the plot envelope. It also rejects intersections between building footprints. Props may overlap a surface cell, but they may not intersect a building footprint. Surface cells may touch at their edges.
+The validator rotates every declared footprint around its module anchor, translates it into plot coordinates, and checks the result against the plot envelope. It also rejects intersections between building footprints. Props may overlap the surface, but they may not intersect a building footprint.
 
 ## Curated tile set
 
