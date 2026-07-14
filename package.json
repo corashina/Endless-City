@@ -7,7 +7,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "tiles:build": "bun tools/tiles/build-tiles.ts"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.3.0",
