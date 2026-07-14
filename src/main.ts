@@ -11,7 +11,6 @@ if (interfaceRoot === null) throw new Error('Missing #city-interface')
 const acceptance = parseAcceptanceConfiguration(window.location.search)
 
 const overlay = new OverlayController(interfaceRoot, {
-  debug: acceptance.debug,
   retry: () => window.location.reload(),
 })
 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#151513">
+    <meta name="theme-color" content="#d7e5ee">
     <title>Endless City</title>
     <link rel="stylesheet" href="/style.css">
     <link rel="icon" href="/favicon.ico" sizes="16x16">
@@ -12,38 +12,10 @@
     <canvas id="city-canvas" aria-label="Interactive view of an endless city"></canvas>
 
     <div id="city-interface" class="city-interface" data-state="loading">
-      <header class="city-header">
-        <h1>Endless City</h1>
-        <button
-          id="help-toggle"
-          class="text-button"
-          type="button"
-          aria-controls="help-panel"
-          aria-expanded="true"
-        >How to explore</button>
-      </header>
-
-      <aside id="help-panel" class="help-panel" aria-label="Exploration controls">
-        <div class="instruction-group">
-          <h2>Mouse</h2>
-          <p>Drag to move. Scroll to zoom. The viewing angle is fixed.</p>
-        </div>
-        <div class="instruction-group">
-          <h2>Touch</h2>
-          <p>Drag with one finger to move. Pinch or drag with two fingers to move and zoom.</p>
-        </div>
-        <label class="statistics-label" for="statistics-toggle">
-          <input id="statistics-toggle" type="checkbox">
-          <span>Show performance statistics</span>
-        </label>
-      </aside>
-
-      <output id="fps-output" class="fps-output" aria-label="Rendering performance" hidden></output>
-
       <section id="blocking-overlay" class="blocking-overlay" aria-label="City status">
         <p id="loading-status" class="status-message" role="status">Loading city 0/17</p>
         <div id="error-panel" class="error-panel" role="alert" hidden>
-          <h2>City unavailable</h2>
+          <h1>City unavailable</h1>
           <p id="error-message"></p>
           <button id="retry-button" class="retry-button" type="button">Retry</button>
         </div>

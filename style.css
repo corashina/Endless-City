@@ -1,18 +1,16 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   --ink: #151513;
-  --panel: rgb(21 21 19 / 88%);
+  --panel: rgb(21 21 19 / 90%);
   --cream: #f2ead8;
-  --muted: #bcb5a6;
+  --muted: #c8c1b2;
   --line: rgb(242 234 216 / 24%);
-  --accent: #c68555;
+  --accent: #d79a68;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html,
 body {
@@ -20,31 +18,10 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: var(--ink);
+  background: #d7e5ee;
 }
 
-button,
-input {
-  font: inherit;
-}
-
-button {
-  color: inherit;
-}
-
-button:focus-visible,
-input:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-}
-
-button:active {
-  transform: translateY(1px);
-}
-
-[hidden] {
-  display: none !important;
-}
+[hidden] { display: none !important; }
 
 #city-canvas {
   position: fixed;
@@ -63,122 +40,6 @@ button:active {
   color: var(--cream);
 }
 
-.city-header {
-  position: absolute;
-  top: max(0.75rem, env(safe-area-inset-top));
-  left: max(0.75rem, env(safe-area-inset-left));
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  max-width: calc(100% - 1.5rem);
-  padding: 0.45rem 0.5rem 0.45rem 0.75rem;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  pointer-events: auto;
-}
-
-.city-header h1 {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.text-button,
-.retry-button {
-  border: 1px solid var(--line);
-  background: transparent;
-  cursor: pointer;
-  transition: transform 140ms ease;
-}
-
-.text-button {
-  min-height: 2rem;
-  padding: 0.35rem 0.6rem;
-  color: var(--cream);
-  font-size: 0.75rem;
-}
-
-.text-button:hover,
-.retry-button:hover {
-  border-color: var(--accent);
-  background: rgb(198 133 85 / 16%);
-}
-
-.help-panel {
-  position: absolute;
-  top: max(4rem, calc(env(safe-area-inset-top) + 4rem));
-  right: max(0.75rem, env(safe-area-inset-right));
-  width: min(19rem, calc(100% - 1.5rem));
-  max-height: calc(100dvh - 5rem - env(safe-area-inset-bottom));
-  overflow-y: auto;
-  padding: 1rem;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  pointer-events: auto;
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-
-.instruction-group + .instruction-group {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--line);
-}
-
-.instruction-group h2,
-.error-panel h2 {
-  margin: 0 0 0.3rem;
-  font-size: 0.75rem;
-  line-height: 1.2;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.instruction-group p,
-.error-panel p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
-.statistics-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  margin-top: 1rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--line);
-  color: var(--cream);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  cursor: pointer;
-}
-
-.statistics-label input {
-  width: 1rem;
-  height: 1rem;
-  margin: 0.05rem 0 0;
-  accent-color: var(--accent);
-}
-
-.fps-output {
-  position: absolute;
-  right: max(0.75rem, env(safe-area-inset-right));
-  bottom: max(0.75rem, env(safe-area-inset-bottom));
-  min-width: 4.5rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--cream);
-  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
-  font-size: 0.75rem;
-  text-align: right;
-}
-
 .blocking-overlay {
   position: absolute;
   inset: 0;
@@ -186,9 +47,8 @@ button:active {
   place-items: center;
   min-height: 100dvh;
   padding: 1rem;
-  background: rgb(21 21 19 / 78%);
+  background: rgb(21 21 19 / 72%);
   pointer-events: auto;
-  transition: opacity 180ms ease;
 }
 
 .status-message,
@@ -201,50 +61,42 @@ button:active {
 }
 
 .status-message {
-  color: var(--cream);
   font-size: 0.875rem;
   text-align: center;
 }
 
-.error-panel {
-  text-align: left;
+.error-panel h1 {
+  margin: 0 0 0.3rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .error-panel p {
+  margin: 0;
   overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 .retry-button {
   min-height: 2.5rem;
   margin-top: 1rem;
   padding: 0.55rem 1rem;
-  border-color: var(--accent);
+  border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--ink);
+  font: inherit;
   font-size: 0.8125rem;
   font-weight: 700;
+  cursor: pointer;
 }
 
-@media (max-width: 420px) {
-  .city-header {
-    right: 0.75rem;
-    justify-content: space-between;
-  }
-
-  .help-panel {
-    top: max(3.75rem, calc(env(safe-area-inset-top) + 3.75rem));
-    left: 0.75rem;
-    right: 0.75rem;
-    width: auto;
-    max-height: calc(100dvh - 4.75rem - env(safe-area-inset-bottom));
-  }
+.retry-button:focus-visible {
+  outline: 3px solid var(--cream);
+  outline-offset: 3px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .help-panel,
-  .blocking-overlay,
-  .text-button,
-  .retry-button {
-    transition: none;
-  }
-}
+.retry-button:active { transform: translateY(1px); }

@@ -26,7 +26,6 @@ function createOverlayHarness() {
     showReady: vi.fn(),
     showError: vi.fn(),
     showContextLost: vi.fn(),
-    updateFps: vi.fn(),
     dispose: vi.fn(),
   }
 }
