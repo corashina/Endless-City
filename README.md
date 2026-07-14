@@ -52,7 +52,7 @@ The build command runs strict TypeScript checking and emits a production site to
 - `src/ui/` — loading, help, diagnostics, failure, and recovery states.
 - `src/app.ts` and `src/main.ts` — application lifecycle and browser bootstrap.
 - `tests/` — deterministic unit, integration, lifecycle, and existing-asset contract tests.
-- `js/clusters/` — the original GLTF/GLB visual assets reused by the redesign.
+- `js/clusters/` — original runtime assets plus the 12 repository-derived remix GLBs.
 - `tools/tiles/` — validated recipes, offline GLB compiler, and local review gallery.
 - `docs/architecture.md` — maintainer guide to streaming, traffic, rendering, and errors.
 - `docs/legacy-audit.md` — original failure analysis and replacement invariants.

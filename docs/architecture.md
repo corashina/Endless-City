@@ -45,6 +45,8 @@ MapControls derives a ground-plane reference when a pointer gesture starts. To k
 
 The original separable models live in `js/gltf/`. `tools/tiles/` uses named source nodes and validated 40-by-40 recipes to regenerate the 12 committed remix GLBs with `bun run tiles:build`. The browser never assembles tile recipes. The local `/tools/tiles/gallery.html` page displays all remix outputs for visual review during development.
 
+This repository has no separate asset-license file. Before publishing redistributed derivatives outside this repository, maintainers must confirm the provenance of the original model files.
+
 Each directed root in `cars.gltf` becomes a vehicle prototype. The loader validates direction extras as one of `(1, 0)`, `(-1, 0)`, `(0, 1)`, or `(0, -1)`, measures length from its bounds, and exposes immutable metadata to the simulation. `src/rendering/traffic-view.ts` allocates one render slot per simulation slot and interpolates between previous/current progress. A recycled slot may exchange its cloned prototype, but the slot count remains fixed.
 
 If no valid vehicle metadata is available, `src/app.ts` constructs neither `TrafficSimulation` nor `TrafficView`. The city, camera, controls, lighting, overlay, and render loop continue without a traffic pool.
