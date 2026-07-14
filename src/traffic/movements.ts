@@ -271,7 +271,6 @@ export function updateMovementReservations(
     request.vehicle.ownedZoneKeys = [...request.zoneKeys]
     request.vehicle.movementEntered = false
     request.vehicle.grantExpiresAtStep = stepNumber + config.reservationLifetimeSteps
-    request.vehicle.requestAgeSteps = 0
   }
 
   return { stops }

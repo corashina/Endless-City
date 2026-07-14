@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { stepFollowing } from '../src/traffic/following'
+import { planMissingMovements } from '../src/traffic/intersections'
 import { positionOnLane } from '../src/traffic/lanes'
 import {
   updateMovementReservations,
@@ -73,6 +74,15 @@ const intersectsConflictZone = (state: VehicleState): boolean => {
 }
 
 describe('intersection reservations', () => {
+  it('clears stale request age when planning a new route movement', () => {
+    const state = vehicle({ requestAgeSteps: 73 })
+
+    planMissingMovements([state], 12345, config)
+
+    expect(state.plannedMovement).not.toBeNull()
+    expect(state.requestAgeSteps).toBe(0)
+  })
+
   it.each([
     ['east', 'north'],
     ['east', 'south'],

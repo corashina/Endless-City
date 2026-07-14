@@ -90,7 +90,79 @@ const vehicleOnLane = (
   })
 }
 
+const movementCases = [
+  ['ES', 'east', 'straight'],
+  ['EL', 'east', 'left'],
+  ['ER', 'east', 'right'],
+  ['NS', 'north', 'straight'],
+  ['NL', 'north', 'left'],
+  ['NR', 'north', 'right'],
+  ['WS', 'west', 'straight'],
+  ['WL', 'west', 'left'],
+  ['WR', 'west', 'right'],
+  ['SS', 'south', 'straight'],
+  ['SL', 'south', 'left'],
+  ['SR', 'south', 'right'],
+] as const
+
+// Hand-authored from the lane-level movement geometry. X means that the two
+// swept vehicle corridors conflict; . means they can occupy the intersection
+// together. This oracle intentionally does not use production conflict zones.
+const expectedConflictRows = [
+  'XXXX.X..XXXX', // ES
+  'XXXX....X..X', // EL
+  'XXXXXXXX.X.X', // ER
+  'XXXXXXX.X..X', // NS
+  '..XXXXX....X', // NL
+  'X.XXXXXXXXXX', // NR
+  '..XXXXXXXX.X', // WS
+  '..X..XXXXX..', // WL
+  'XX.X.XXXXXXX', // WR
+  'X.X..XXXXXXX', // SS
+  'X....X..XXXX', // SL
+  'XXXXXXX.XXXX', // SR
+] as const
+
 describe('movement conflict zones', () => {
+  it('classifies and allocates every unordered pair of the 12 movements', () => {
+    expect(expectedConflictRows.every(row => row.length === movementCases.length)).toBe(true)
+    expect(expectedConflictRows.every((row, rowIndex) =>
+      [...row].every((value, columnIndex) =>
+        value === expectedConflictRows[columnIndex]![rowIndex]),
+    )).toBe(true)
+
+    let pairCount = 0
+    for (let leftIndex = 0; leftIndex < movementCases.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex; rightIndex < movementCases.length; rightIndex += 1) {
+        pairCount += 1
+        const [leftLabel, leftDirection, leftManeuver] = movementCases[leftIndex]!
+        const [rightLabel, rightDirection, rightManeuver] = movementCases[rightIndex]!
+        const expectedConflict = expectedConflictRows[leftIndex]![rightIndex] === 'X'
+        const label = `${leftLabel}/${rightLabel}`
+        const left = vehicleApproaching(leftDirection, leftManeuver, { id: 1 })
+        const right = vehicleApproaching(rightDirection, rightManeuver, { id: 2 })
+
+        expect(
+          movementsConflict(
+            left.plannedMovement!,
+            right.plannedMovement!,
+            config.movementCorridorHalfWidth,
+          ),
+          `${label} classifier`,
+        ).toBe(expectedConflict)
+
+        updateMovementReservations([left, right], new Map(), config, 0)
+        const grantedCount = [left, right]
+          .filter(vehicle => vehicle.ownedZoneKeys.length > 0)
+          .length
+        expect(grantedCount, `${label} simultaneous grants`)
+          .toBe(expectedConflict ? 1 : 2)
+      }
+    }
+
+    expect(pairCount).toBe(78)
+  })
+
   it('allows non-overlapping opposite right turns', () => {
     const eastRight = planMovement({ direction: 'east', line: 0 }, -31, 'right', 5)
     const westRight = planMovement({ direction: 'west', line: 0 }, 9, 'right', 5)
@@ -305,6 +377,22 @@ describe('movement conflict zones', () => {
     expect(conflicting.ownedZoneKeys).toEqual([])
   })
 
+  it('resets accumulated request age when the front bumper enters the movement', () => {
+    const requester = vehicleApproaching('east', 'left', {
+      id: 1,
+      requestAgeSteps: 60,
+    })
+    const reservations = new Map()
+
+    updateMovementReservations([requester], reservations, config, 0)
+    expect(requester.requestAgeSteps).toBe(60)
+
+    stepFollowing([requester], 1 / 60, config)
+
+    expect(requester.movementEntered).toBe(true)
+    expect(requester.requestAgeSteps).toBe(0)
+  })
+
   it('retains departed zones until the rear bumper clears the outgoing boundary', () => {
     const requester = vehicleApproaching('east', 'right', { id: 1, progress: -31 })
     const reservations = new Map()
@@ -336,5 +424,38 @@ describe('movement conflict zones', () => {
     updateMovementReservations([newer, older], new Map(), config, 0)
     expect(older.ownedZoneKeys.length).toBeGreaterThan(0)
     expect(newer.ownedZoneKeys).toEqual([])
+  })
+
+  it('retains request age through repeated unused expiries without starving contenders', () => {
+    const first = vehicleApproaching('east', 'right', {
+      id: 1,
+      requestAgeSteps: 50,
+    })
+    const second = vehicleApproaching('north', 'straight', {
+      id: 2,
+      requestAgeSteps: 30,
+    })
+    const third = vehicleApproaching('south', 'right', {
+      id: 3,
+      requestAgeSteps: 10,
+    })
+    const vehicles = [first, second, third]
+    const reservations = new Map()
+    const grantOrder: number[] = []
+    let previousHolder: number | undefined
+
+    for (let step = 0; step <= 360; step += 1) {
+      updateMovementReservations(vehicles, reservations, config, step)
+      const holder = vehicles.find(vehicle => vehicle.ownedZoneKeys.length > 0)?.id
+      if (holder !== undefined && holder !== previousHolder) grantOrder.push(holder)
+      previousHolder = holder
+
+      if (step === 120) expect(first.requestAgeSteps).toBe(50)
+      if (step === 240) expect(second.requestAgeSteps).toBe(150)
+      if (step === 360) expect(third.requestAgeSteps).toBe(250)
+    }
+
+    expect(grantOrder).toEqual([first.id, second.id, third.id, first.id])
+    expect(new Set(grantOrder)).toEqual(new Set(vehicles.map(vehicle => vehicle.id)))
   })
 })

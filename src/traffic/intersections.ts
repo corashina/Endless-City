@@ -30,6 +30,7 @@ export const planMissingMovements = (
       maneuver,
       config.intersectionHalfExtent,
     )
+    vehicle.requestAgeSteps = 0
     vehicle.movementEntered = false
   }
 }

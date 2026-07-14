@@ -322,6 +322,7 @@ const advanceVehicle = (
     vehicle.ownedZoneKeys.length > 0
     && proposedPosition + vehicle.length / 2 >= 0
   ) {
+    if (!vehicle.movementEntered) vehicle.requestAgeSteps = 0
     vehicle.movementEntered = true
   }
 
