@@ -29,7 +29,7 @@ export function wrapCloudPosition(
   const x = position.x - camera.x
   const z = position.z - camera.z
   const distance = Math.hypot(x, z)
-  if (distance <= CLOUD_WRAP_RADIUS) return { ...position }
+  if (distance <= CLOUD_WRAP_RADIUS) return position
 
   const unitX = x / distance
   const unitZ = z / distance
@@ -51,7 +51,7 @@ export class CloudLayer implements CloudLayerController {
   private readonly material = new THREE.MeshLambertMaterial({ color: 0xf6f5ef })
   private readonly clouds: Array<{
     readonly group: THREE.Group
-    logicalPosition: WorldPoint
+    readonly logicalPosition: { x: number; z: number }
     readonly height: number
   }>
   private disposed = false
@@ -71,9 +71,11 @@ export class CloudLayer implements CloudLayerController {
         group.add(mesh)
       }
       this.root.add(group)
+      const logicalPosition = { ...cloud.position }
+      group.userData.logicalPosition = logicalPosition
       return {
         group,
-        logicalPosition: { ...cloud.position },
+        logicalPosition,
         height: cloud.height,
       }
     })
@@ -84,8 +86,11 @@ export class CloudLayer implements CloudLayerController {
   update(logicalCamera: WorldPoint, origin: WorldPoint): void {
     if (this.disposed) return
     for (const [index, cloud] of this.clouds.entries()) {
-      cloud.logicalPosition = wrapCloudPosition(cloud.logicalPosition, logicalCamera, index)
-      cloud.group.userData.logicalPosition = { ...cloud.logicalPosition }
+      const wrappedPosition = wrapCloudPosition(cloud.logicalPosition, logicalCamera, index)
+      if (wrappedPosition !== cloud.logicalPosition) {
+        cloud.logicalPosition.x = wrappedPosition.x
+        cloud.logicalPosition.z = wrappedPosition.z
+      }
       cloud.group.position.set(
         cloud.logicalPosition.x - origin.x,
         cloud.height,
