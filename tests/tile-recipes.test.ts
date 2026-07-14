@@ -4,10 +4,32 @@ import { REMIX_TILE_IDS, REMIX_TILE_RECIPES } from '../tools/tiles/tile-recipes'
 import { validateCatalog, validateRecipes } from '../tools/tiles/validate-recipes'
 import type { ModuleDefinition, TileRecipe } from '../tools/tiles/types'
 
+const ENRICHMENT_MODULES = [
+  { id: 'cube-tree', source: 'apartments.gltf', nodeName: 'Natures_Cube_Tree.obj', width: 3.39, depth: 3.19 },
+  { id: 'fir-tree', source: 'house.gltf', nodeName: 'Natures_Fir_Tree.obj', width: 3.39, depth: 3.92 },
+  { id: 'parked-car', source: 'house.gltf', nodeName: 'Vehicle_Car.obj', width: 6.32, depth: 2.96 },
+  { id: 'pickup-truck', source: 'gas.gltf', nodeName: 'Vehicle_Pick_up_Truck.obj', width: 3.10, depth: 5.97 },
+  { id: 'police-car', source: 'gas.gltf', nodeName: 'Vehicle_Police_Car.obj', width: 6.32, depth: 2.96 },
+  { id: 'delivery-truck', source: 'factory.gltf', nodeName: 'Vehicle_Truck.obj', width: 9.10, depth: 3.63 },
+  { id: 'hydrant', source: 'bus.gltf', nodeName: 'Props_Hydrant.obj', width: 0.44, depth: 0.44 },
+  { id: 'street-light', source: 'road.gltf', nodeName: 'Props_Street_Light.obj', width: 0.60, depth: 2.53 },
+  { id: 'stop-sign', source: 'bus.gltf', nodeName: 'Props_Traffic_Sign_stop.obj', width: 0.72, depth: 0.07 },
+  { id: 'barrier', source: 'supermarket.gltf', nodeName: 'Props_Traffic_Control_Barrier_Fence.obj', width: 3.60, depth: 0.20 },
+  { id: 'fence', source: 'house2.gltf', nodeName: 'Props_Fence.obj', width: 39.60, depth: 0.16 },
+] as const
+
 describe('remix module catalog', () => {
   it('contains unique stable IDs and exact source node names', () => {
     expect(() => validateCatalog(MODULE_CATALOG)).not.toThrow()
     expect(new Set(MODULE_CATALOG.map(({ id }) => id)).size).toBe(MODULE_CATALOG.length)
+  })
+
+  it('pins the exact enrichment prop catalog', () => {
+    const ids = new Set(ENRICHMENT_MODULES.map(({ id }) => id))
+    expect(MODULE_CATALOG.filter(({ id }) => ids.has(id as typeof ENRICHMENT_MODULES[number]['id']))
+      .map(({ id, source, nodeName, kind, footprint }) => ({
+        id, source, nodeName, kind, width: footprint.width, depth: footprint.depth,
+      }))).toEqual(ENRICHMENT_MODULES.map((entry) => ({ ...entry, kind: 'prop' })))
   })
 })
 

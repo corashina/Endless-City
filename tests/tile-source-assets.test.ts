@@ -1,12 +1,21 @@
 import { Accessor, Document } from '@gltf-transform/core'
 import { getBounds } from '@gltf-transform/functions'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { MODULE_CATALOG } from '../tools/tiles/module-catalog'
 import {
+  assertDeclaredFootprint,
   copyPlacedModule,
   findExactNode,
   measureModuleFootprint,
+  SourceCache,
 } from '../tools/tiles/source-assets'
 import type { ModuleDefinition } from '../tools/tiles/types'
+
+const ENRICHMENT_MODULE_IDS = [
+  'cube-tree', 'fir-tree', 'parked-car', 'pickup-truck', 'police-car',
+  'delivery-truck', 'hydrant', 'street-light', 'stop-sign', 'barrier', 'fence',
+] as const
 
 const definition: ModuleDefinition = {
   id: 'fixture', source: 'fixture.gltf', nodeName: 'Fixture', kind: 'building',
@@ -28,6 +37,19 @@ const createSource = (): Document => {
 }
 
 describe('source asset extraction', () => {
+  it('resolves every enrichment prop once within its declared footprint', async () => {
+    const sources = new SourceCache(resolve('.'))
+    const byId = new Map(MODULE_CATALOG.map((entry) => [entry.id, entry]))
+    for (const id of ENRICHMENT_MODULE_IDS) {
+      const entry = byId.get(id)
+      expect(entry, id).toBeDefined()
+      const source = await sources.load(entry!.source)
+      const node = findExactNode(source, entry!)
+      expect(node.getName()).toBe(entry!.nodeName)
+      expect(() => assertDeclaredFootprint(node, entry!)).not.toThrow()
+    }
+  })
+
   it('requires one exact node name', () => {
     const source = createSource()
     expect(findExactNode(source, definition).getName()).toBe('Fixture')

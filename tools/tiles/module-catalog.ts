@@ -38,6 +38,17 @@ export const MODULE_CATALOG = Object.freeze([
   module('bush', 'park.gltf', 'Natures_Bush_01.obj', 'prop', 1.32, 1.29),
   module('rock', 'park.gltf', 'Natures_Rock_Big.obj', 'prop', 5.80, 5),
   module('coffee-chair', 'coffeeshop.gltf', 'Props_Coffee_shop_chair.obj', 'prop', 3.85, 3.85),
+  module('cube-tree', 'apartments.gltf', 'Natures_Cube_Tree.obj', 'prop', 3.39, 3.19),
+  module('fir-tree', 'house.gltf', 'Natures_Fir_Tree.obj', 'prop', 3.39, 3.92),
+  module('parked-car', 'house.gltf', 'Vehicle_Car.obj', 'prop', 6.32, 2.96),
+  module('pickup-truck', 'gas.gltf', 'Vehicle_Pick_up_Truck.obj', 'prop', 3.10, 5.97),
+  module('police-car', 'gas.gltf', 'Vehicle_Police_Car.obj', 'prop', 6.32, 2.96),
+  module('delivery-truck', 'factory.gltf', 'Vehicle_Truck.obj', 'prop', 9.10, 3.63),
+  module('hydrant', 'bus.gltf', 'Props_Hydrant.obj', 'prop', 0.44, 0.44),
+  module('street-light', 'road.gltf', 'Props_Street_Light.obj', 'prop', 0.60, 2.53),
+  module('stop-sign', 'bus.gltf', 'Props_Traffic_Sign_stop.obj', 'prop', 0.72, 0.07),
+  module('barrier', 'supermarket.gltf', 'Props_Traffic_Control_Barrier_Fence.obj', 'prop', 3.60, 0.20),
+  module('fence', 'house2.gltf', 'Props_Fence.obj', 'prop', 39.60, 0.16),
 ] satisfies readonly ModuleDefinition[])
 
 export const MODULES_BY_ID = new Map(MODULE_CATALOG.map((entry) => [entry.id, entry]))
