@@ -1,4 +1,5 @@
 import { Accessor, Document } from '@gltf-transform/core'
+import { getBounds } from '@gltf-transform/functions'
 import { describe, expect, it } from 'vitest'
 import {
   copyPlacedModule,
@@ -20,7 +21,8 @@ const createSource = (): Document => {
   ])).setBuffer(buffer)
   const primitive = document.createPrimitive().setAttribute('POSITION', positions)
   const mesh = document.createMesh('FixtureMesh').addPrimitive(primitive)
-  const node = document.createNode('Fixture').setMesh(mesh).setTranslation([10, 0, 20])
+  const geometry = document.createNode('FixtureGeometry').setMesh(mesh)
+  const node = document.createNode('Fixture').setTranslation([10, 0, 20]).addChild(geometry)
   document.createScene('Source').addChild(node)
   return document
 }
@@ -49,5 +51,15 @@ describe('source asset extraction', () => {
     expect(placement.getTranslation()).toEqual([8, 0, 12])
     expect(placement.getRotation()).toEqual([0, Math.SQRT1_2, 0, Math.SQRT1_2])
     expect(placement.listChildren()).toHaveLength(1)
+    const copiedModule = placement.listChildren()[0]!
+    expect(copiedModule.listChildren()).toHaveLength(1)
+    const copiedGeometry = copiedModule.listChildren()[0]!
+    expect(copiedGeometry.getName()).toBe('FixtureGeometry')
+    expect(copiedGeometry.getMesh()?.getName()).toBe('FixtureMesh')
+    expect(copiedGeometry.getMesh()?.listPrimitives()[0]?.getAttribute('POSITION')?.getCount()).toBe(4)
+    const bounds = getBounds(copiedModule)
+    expect(bounds.min[1]).toBeCloseTo(0)
+    expect((bounds.min[0] + bounds.max[0]) / 2).toBeCloseTo(placement.getTranslation()[0])
+    expect((bounds.min[2] + bounds.max[2]) / 2).toBeCloseTo(placement.getTranslation()[2])
   })
 })
