@@ -1,15 +1,21 @@
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import type { AssetCatalog } from '../src/rendering/assets'
-import { interpolatedVehiclePoint, TrafficView } from '../src/rendering/traffic-view'
+import { interpolatedVehiclePose, TrafficView } from '../src/rendering/traffic-view'
 import { positionOnLane } from '../src/traffic/lanes'
 import { createDriverTraits } from '../src/traffic/random'
-import { headingForDirection } from '../src/traffic/routing'
+import {
+  headingForDirection,
+  planMovement,
+  poseForVehicle,
+  shortestAngleDelta,
+} from '../src/traffic/routing'
 import type { VehicleState } from '../src/traffic/types'
 
 const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
   const id = overrides.id ?? 0
   const lane = overrides.lane ?? { direction: 'east', line: 0 }
+  const previousProgress = overrides.previousProgress ?? 10
   const progress = overrides.progress ?? 14
   return {
     id,
@@ -17,7 +23,7 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     length: 4,
     lane,
     nativeDirection: 'east',
-    previousProgress: 10,
+    previousProgress,
     progress,
     speed: 4,
     desiredSpeed: 8,
@@ -34,28 +40,34 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     turn: null,
     clearingMovement: null,
     previousPose: {
-      ...positionOnLane(lane, progress),
+      ...positionOnLane(lane, previousProgress),
       heading: headingForDirection(lane.direction),
     },
     ...overrides,
   }
 }
 
-describe('interpolatedVehiclePoint', () => {
-  it.each([
-    [0, 10],
-    [0.5, 12],
-    [1, 14],
-  ])('interpolates eastbound progress at alpha %s', (alpha, expectedX) => {
-    expect(interpolatedVehiclePoint(vehicle(), alpha)).toEqual({ x: expectedX, z: -16 })
-  })
+describe('interpolatedVehiclePose', () => {
+  it('interpolates position and the shortest heading through a turn', () => {
+    const turning = vehicle({
+      previousPose: { x: -25, z: -16, heading: 0 },
+      turn: {
+        movement: planMovement({ direction: 'east', line: 0 }, -31, 'left', 5),
+        distance: 5,
+      },
+    })
+    const current = poseForVehicle(turning)
 
-  it('converts interpolated southbound progress to decreasing z', () => {
-    const southbound = vehicle({ lane: { direction: 'south', line: 2 } })
+    const midpoint = interpolatedVehiclePose(turning, 0.5)
 
-    expect(interpolatedVehiclePoint(southbound, 0)).toEqual({ x: 104, z: -10 })
-    expect(interpolatedVehiclePoint(southbound, 0.5)).toEqual({ x: 104, z: -12 })
-    expect(interpolatedVehiclePoint(southbound, 1)).toEqual({ x: 104, z: -14 })
+    expect(midpoint.x).toBeCloseTo((turning.previousPose.x + current.x) / 2)
+    expect(midpoint.z).toBeCloseTo((turning.previousPose.z + current.z) / 2)
+    expect(midpoint.heading).toBeCloseTo(
+      turning.previousPose.heading
+        + shortestAngleDelta(turning.previousPose.heading, current.heading) / 2,
+    )
+    expect(Math.abs(shortestAngleDelta(turning.previousPose.heading, midpoint.heading)))
+      .toBeLessThan(Math.PI / 2)
   })
 })
 
@@ -87,6 +99,20 @@ function createCatalog(): { catalog: AssetCatalog; cloneCounts: Map<string, numb
 }
 
 describe('TrafficView', () => {
+  it('rotates an authored eastbound model to match a northbound route heading', () => {
+    const scene = new THREE.Scene()
+    const { catalog } = createCatalog()
+    const state = vehicle({
+      nativeDirection: 'east',
+      lane: { direction: 'north', line: 0 },
+    })
+    const view = new TrafficView(scene, catalog, [state])
+
+    view.sync([state], { x: 0, z: 0 }, 1)
+
+    expect(view.root.children[0]!.rotation.y).toBeCloseTo(0.2 - Math.PI / 2)
+  })
+
   it('allocates one authored clone per simulation slot and reuses it during sync', () => {
     const scene = new THREE.Scene()
     const { catalog, cloneCounts } = createCatalog()

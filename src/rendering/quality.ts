@@ -3,7 +3,7 @@ export type QualityProfileId = 'high' | 'balanced' | 'mobile'
 export interface QualityProfile {
   readonly id: QualityProfileId
   readonly tileDiameter: 9 | 7
-  readonly trafficCount: 49 | 32 | 20
+  readonly trafficCount: 72 | 48 | 28
   readonly maxPixelRatio: 1.5 | 1.25 | 1
   readonly shadowMapSize: 2048 | 1024
 }
@@ -16,7 +16,7 @@ export interface QualityProfileInput {
 const HIGH = Object.freeze({
   id: 'high',
   tileDiameter: 9,
-  trafficCount: 49,
+  trafficCount: 72,
   maxPixelRatio: 1.5,
   shadowMapSize: 2048,
 } as const satisfies QualityProfile)
@@ -24,7 +24,7 @@ const HIGH = Object.freeze({
 const BALANCED = Object.freeze({
   id: 'balanced',
   tileDiameter: 7,
-  trafficCount: 32,
+  trafficCount: 48,
   maxPixelRatio: 1.25,
   shadowMapSize: 1024,
 } as const satisfies QualityProfile)
@@ -32,7 +32,7 @@ const BALANCED = Object.freeze({
 const MOBILE = Object.freeze({
   id: 'mobile',
   tileDiameter: 7,
-  trafficCount: 20,
+  trafficCount: 28,
   maxPixelRatio: 1,
   shadowMapSize: 1024,
 } as const satisfies QualityProfile)
