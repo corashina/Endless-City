@@ -95,6 +95,56 @@ const assertNoSharedMovementZone = (vehicles: readonly VehicleState[]): void => 
   }
 }
 
+const assertNoApproachToTurnOverlap = (
+  vehicles: readonly VehicleState[],
+  context = '',
+): void => {
+  const approachGroups = new Map<
+    string,
+    { readonly vehicle: VehicleState, readonly position: number }[]
+  >()
+
+  for (const vehicle of vehicles) {
+    if (!vehicle.active) continue
+
+    let position = vehicle.progress
+    if (vehicle.turn !== null) {
+      if (vehicle.turn.distance - vehicle.length / 2 > 0) continue
+      position = vehicle.turn.movement.entryProgress + vehicle.turn.distance
+    }
+
+    const key = `${vehicle.lane.direction}:${vehicle.lane.line}`
+    const approach = approachGroups.get(key)
+    const entry = { vehicle, position }
+    if (approach === undefined) approachGroups.set(key, [entry])
+    else approach.push(entry)
+  }
+
+  for (const approach of approachGroups.values()) {
+    approach.sort((left, right) => left.position - right.position
+      || left.vehicle.id - right.vehicle.id)
+
+    for (let index = 1; index < approach.length; index += 1) {
+      const follower = approach[index - 1]?.vehicle
+      const leader = approach[index]?.vehicle
+      if (follower === undefined || leader === undefined || leader.turn === null) continue
+      if (follower.plannedMovement?.key === leader.turn.movement.key) continue
+
+      const followerPose = poseForVehicle(follower)
+      const leaderPose = poseForVehicle(leader)
+      const bumperGap = Math.hypot(
+        leaderPose.x - followerPose.x,
+        leaderPose.z - followerPose.z,
+      ) - (leader.length + follower.length) / 2
+      if (bumperGap < -1e-9) {
+        throw new Error(
+          `Approach vehicle ${follower.id} overlaps turning vehicle ${leader.id} by ${-bumperGap} ${context}`,
+        )
+      }
+    }
+  }
+}
+
 const completeSimulationStatesEqual = (
   left: TrafficSimulation,
   right: TrafficSimulation,
@@ -280,6 +330,7 @@ describe('traffic simulation', () => {
         }
 
         assertNoFollowingOverlap(simulation.vehicles)
+        assertNoApproachToTurnOverlap(simulation.vehicles)
         assertNoSharedMovementZone(simulation.vehicles)
       }
     }
@@ -356,6 +407,7 @@ describe('traffic simulation', () => {
       }
 
       assertNoFollowingOverlap(simulation.vehicles, `at step ${step}`)
+      assertNoApproachToTurnOverlap(simulation.vehicles, `at step ${step}`)
       assertNoSharedMovementZone(simulation.vehicles)
     }
 

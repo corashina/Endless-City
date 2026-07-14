@@ -9,6 +9,11 @@ interface LeaderState {
   readonly vehicle?: VehicleState
 }
 
+export interface IncomingLaneLeader {
+  readonly vehicle: VehicleState
+  readonly progress: number
+}
+
 interface RouteState {
   readonly movement: PlannedMovement
   readonly position: number
@@ -34,6 +39,48 @@ const sameLane = (
   left: VehicleState['lane'],
   right: VehicleState['lane'],
 ): boolean => laneKey(left) === laneKey(right)
+
+const incomingApproachProgress = (vehicle: VehicleState): number | undefined => {
+  if (vehicle.turn === null) return vehicle.progress
+  if (vehicle.turn.distance - vehicle.length / 2 > 0) return undefined
+  return vehicle.turn.movement.entryProgress + vehicle.turn.distance
+}
+
+export const incomingLaneLeaderLookup = (
+  vehicles: readonly VehicleState[],
+): ReadonlyMap<number, IncomingLaneLeader> => {
+  const vehiclesByIncomingLane = new Map<
+    string,
+    { readonly vehicle: VehicleState, readonly progress: number }[]
+  >()
+
+  for (const vehicle of vehicles) {
+    if (!vehicle.active) continue
+    const progress = incomingApproachProgress(vehicle)
+    if (progress === undefined) continue
+    const incomingLane = vehicle.turn?.movement.incomingLane ?? vehicle.lane
+    const key = laneKey(incomingLane)
+    const laneVehicles = vehiclesByIncomingLane.get(key)
+    const entry = { vehicle, progress }
+    if (laneVehicles === undefined) vehiclesByIncomingLane.set(key, [entry])
+    else laneVehicles.push(entry)
+  }
+
+  const leaders = new Map<number, IncomingLaneLeader>()
+  for (const laneVehicles of vehiclesByIncomingLane.values()) {
+    laneVehicles.sort((left, right) => left.progress - right.progress
+      || left.vehicle.id - right.vehicle.id)
+    for (let index = 0; index + 1 < laneVehicles.length; index += 1) {
+      const follower = laneVehicles[index]!
+      const leader = laneVehicles[index + 1]!
+      leaders.set(follower.vehicle.id, {
+        vehicle: leader.vehicle,
+        progress: leader.progress,
+      })
+    }
+  }
+  return leaders
+}
 
 const projectOnMovement = (
   vehicle: VehicleState,
@@ -87,7 +134,7 @@ const nearestOutgoingVehicle = (
 
 const nearestLeader = (
   vehicle: VehicleState,
-  laneLeaderById: ReadonlyMap<number, VehicleState>,
+  laneLeaderById: ReadonlyMap<number, IncomingLaneLeader>,
   movementLeaderById: ReadonlyMap<number, VehicleState>,
   vehiclesByLane: ReadonlyMap<string, readonly VehicleState[]>,
   stopProgressByVehicle: ReadonlyMap<number, number> | undefined,
@@ -96,11 +143,14 @@ const nearestLeader = (
   const candidates: LeaderState[] = []
   const seenVehicleIds = new Set<number>()
 
-  const addVehicle = (candidate: VehicleState | undefined): void => {
+  const addVehicle = (
+    candidate: VehicleState | undefined,
+    explicitRoutePosition?: number,
+  ): void => {
     if (candidate === undefined || seenVehicleIds.has(candidate.id)) return
-    const routePosition = route === undefined
+    const routePosition = explicitRoutePosition ?? (route === undefined
       ? candidate.progress
-      : projectOnMovement(candidate, route.movement)
+      : projectOnMovement(candidate, route.movement))
     const currentPosition = route?.position ?? vehicle.progress
     if (routePosition === undefined || routePosition < currentPosition) return
 
@@ -113,7 +163,15 @@ const nearestLeader = (
     })
   }
 
-  if (vehicle.turn === null) addVehicle(laneLeaderById.get(vehicle.id))
+  const incomingLeader = laneLeaderById.get(vehicle.id)
+  if (vehicle.turn === null && incomingLeader !== undefined) {
+    addVehicle(
+      incomingLeader.vehicle,
+      route === undefined
+        ? incomingLeader.progress
+        : incomingLeader.progress - route.movement.entryProgress,
+    )
+  }
   if (route !== undefined) {
     addVehicle(movementLeaderById.get(vehicle.id))
     addVehicle(nearestOutgoingVehicle(
@@ -315,13 +373,11 @@ export const stepFollowing = (
     }
   }
 
-  const laneLeaderById = new Map<number, VehicleState>()
   for (const laneVehicles of vehiclesByLane.values()) {
     laneVehicles.sort((left, right) => left.progress - right.progress || left.id - right.id)
-    for (let index = 0; index + 1 < laneVehicles.length; index += 1) {
-      laneLeaderById.set(laneVehicles[index]!.id, laneVehicles[index + 1]!)
-    }
   }
+
+  const laneLeaderById = incomingLaneLeaderLookup(vehicles)
 
   const movementLeaderById = new Map<number, VehicleState>()
   for (const movementVehicles of vehiclesByMovement.values()) {

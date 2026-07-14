@@ -2,6 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Execution record:** Tasks 1-6 are complete. Their unchecked steps are retained as the
+historical TDD instructions; durable completion evidence is recorded in
+`.superpowers/sdd/progress.md`, the per-task review reports, and Task 7 below.
+
 **Goal:** Build dense deterministic traffic with varied drivers, balanced directions, smooth intersection turns, collision-safe movement corridors, and long-run visible-density guarantees.
 
 **Architecture:** Extend the fixed-step lane simulation with stateless seeded randomness, focused routing and movement modules, per-driver following parameters, and atomic conflict-zone reservations. Keep one bounded vehicle pool and derive render position plus heading from simulation route state.

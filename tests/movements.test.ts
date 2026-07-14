@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { stepFollowing } from '../src/traffic/following'
+import { incomingLaneLeaderLookup, stepFollowing } from '../src/traffic/following'
 import { positionOnLane } from '../src/traffic/lanes'
 import {
   movementsConflict,
   updateMovementReservations,
 } from '../src/traffic/movements'
 import { createDriverTraits } from '../src/traffic/random'
-import { headingForDirection, planMovement } from '../src/traffic/routing'
+import { headingForDirection, planMovement, poseForVehicle } from '../src/traffic/routing'
 import type {
   Direction,
   Lane,
@@ -164,6 +164,81 @@ describe('movement conflict zones', () => {
     expect(requester.requestAgeSteps).toBe(1)
   })
 
+  it('keeps a left-turning follower behind a slow right-turning leader on the same approach', () => {
+    const leader = vehicleApproaching('east', 'right', {
+      id: 1,
+      length: 6,
+      speed: 0.12,
+    })
+    leader.progress = leader.plannedMovement!.entryProgress - leader.length / 2 - 0.1
+    leader.previousProgress = leader.progress
+    leader.traits = Object.freeze({
+      ...leader.traits,
+      cruiseSpeed: leader.speed,
+      maximumAcceleration: 1.4,
+      minimumGap: 2,
+    })
+    const follower = vehicleApproaching('east', 'left', {
+      id: 2,
+      speed: 8,
+    })
+    follower.traits = Object.freeze({
+      ...follower.traits,
+      cruiseSpeed: 10,
+      minimumGap: 2,
+    })
+    follower.progress = leader.progress
+      - (leader.length + follower.length) / 2
+      - follower.traits.minimumGap
+    follower.previousProgress = follower.progress
+    const reservations = new Map()
+    let sawApproachToTurnTransition = false
+    let sawVirtualStopAfterRearClearance = false
+
+    for (let step = 0; step < 4_000; step += 1) {
+      const { stops } = updateMovementReservations(
+        [leader, follower],
+        reservations,
+        config,
+        step,
+      )
+      if (
+        leader.turn !== null
+        && leader.turn.distance - leader.length / 2 > 0
+        && leader.ownedZoneKeys.length > 0
+      ) {
+        sawVirtualStopAfterRearClearance = true
+        expect(incomingLaneLeaderLookup([leader, follower]).has(follower.id)).toBe(false)
+        expect(stops.get(follower.id)).toBe(follower.plannedMovement!.entryProgress)
+      }
+      stepFollowing([leader, follower], 1 / 60, config, stops)
+
+      if (
+        leader.turn !== null
+        && leader.turn.distance - leader.length / 2 <= 0
+        && follower.turn === null
+      ) {
+        sawApproachToTurnTransition = true
+        const leaderPose = poseForVehicle(leader)
+        const followerPose = poseForVehicle(follower)
+        const bumperGap = Math.hypot(
+          leaderPose.x - followerPose.x,
+          leaderPose.z - followerPose.z,
+        ) - (leader.length + follower.length) / 2
+        expect(bumperGap, `physical bumper gap at fixed step ${step}`)
+          .toBeGreaterThanOrEqual(-1e-9)
+      }
+
+      if (leader.turn === null && leader.plannedMovement === null) break
+    }
+
+    expect(sawApproachToTurnTransition).toBe(true)
+    expect(
+      sawVirtualStopAfterRearClearance,
+      `leader turn distance ${leader.turn?.distance ?? 'complete'}, speed ${leader.speed}, zones ${leader.ownedZoneKeys.length}`,
+    ).toBe(true)
+  })
+
   it('expires an unused grant at exactly step 120', () => {
     const requester = vehicleApproaching('east', 'left', { id: 1, progress: -31 })
     const reservations = new Map()
@@ -172,6 +247,29 @@ describe('movement conflict zones', () => {
     expect(requester.ownedZoneKeys).toEqual([])
     expect(requester.movementEntered).toBe(false)
     expect(expired.stops.get(requester.id)).toBe(requester.plannedMovement!.entryProgress)
+  })
+
+  it('does not add an expiry stop when a physical leader still blocks the entry', () => {
+    const leader = vehicleApproaching('east', 'straight', { id: 1, length: 6 })
+    leader.progress = leader.plannedMovement!.entryProgress + 0.04
+    leader.previousProgress = leader.progress
+    const follower = vehicleApproaching('east', 'straight', { id: 2, length: 4 })
+    follower.progress = leader.progress - (leader.length + follower.length) / 2
+    follower.previousProgress = follower.progress
+    follower.ownedZoneKeys = ['expired-zone']
+    follower.grantExpiresAtStep = 120
+    const reservations = new Map([
+      ['expired-zone', { vehicleId: follower.id, movementKey: follower.plannedMovement!.key }],
+    ])
+
+    const expired = updateMovementReservations(
+      [leader, follower],
+      reservations,
+      config,
+      120,
+    )
+
+    expect(expired.stops.has(follower.id)).toBe(false)
   })
 
   it('retains a slow long car grant from front-bumper entry through expiry', () => {

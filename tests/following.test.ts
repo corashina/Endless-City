@@ -203,6 +203,30 @@ describe('vehicle following', () => {
     expect(follower.speed).toBeCloseTo(15 - follower.traits.emergencyBraking / 60)
   })
 
+  it('advances a lane identically regardless of vehicle input order', () => {
+    const simulate = (leaderFirst: boolean): readonly VehicleState[] => {
+      const leader = vehicle({ id: 1, progress: 20, speed: 8 })
+      const follower = vehicle({ id: 2, progress: 13.51, speed: 10 })
+      const vehicles = leaderFirst ? [leader, follower] : [follower, leader]
+
+      stepFollowing(vehicles, 1 / 60, config)
+
+      return [leader, follower]
+    }
+
+    const [leaderFirstLeader, leaderFirstFollower] = simulate(true)
+    const [followerFirstLeader, followerFirstFollower] = simulate(false)
+
+    expect(leaderFirstLeader).toMatchObject({
+      progress: followerFirstLeader!.progress,
+      speed: followerFirstLeader!.speed,
+    })
+    expect(leaderFirstFollower).toMatchObject({
+      progress: followerFirstFollower!.progress,
+      speed: followerFirstFollower!.speed,
+    })
+  })
+
   const routeBumperGap = (follower: VehicleState, leader: VehicleState): number => {
     const followerPose = poseForVehicle(follower)
     const leaderPose = poseForVehicle(leader)

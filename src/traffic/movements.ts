@@ -1,4 +1,5 @@
 import { BLOCK_SIZE } from '../config'
+import { incomingLaneLeaderLookup, type IncomingLaneLeader } from './following'
 import { CROSSING_CENTER_OFFSET, laneKey } from './lanes'
 import { movementPoseAt } from './routing'
 import type { PlannedMovement, TrafficConfig, VehicleState } from './types'
@@ -124,14 +125,14 @@ const outgoingLaneBlocked = (
 }
 
 const incomingLaneBlocked = (
-  request: MovementRequest,
-  vehiclesByLane: ReadonlyMap<string, readonly VehicleState[]>,
+  vehicle: VehicleState,
+  movement: PlannedMovement,
+  incomingLeaderById: ReadonlyMap<number, IncomingLaneLeader>,
 ): boolean => {
-  const incomingVehicles = vehiclesByLane.get(laneKey(request.movement.incomingLane)) ?? []
-  return incomingVehicles.some((vehicle) =>
-    vehicle.id !== request.vehicle.id
-    && vehicle.progress > request.vehicle.progress
-    && vehicle.progress - vehicle.length / 2 <= request.movement.entryProgress)
+  const leader = incomingLeaderById.get(vehicle.id)
+  return leader !== undefined
+    && leader.progress > vehicle.progress
+    && leader.progress - leader.vehicle.length / 2 <= movement.entryProgress
 }
 
 export function updateMovementReservations(
@@ -159,6 +160,7 @@ export function updateMovementReservations(
   }
   const expiredVehicleIds = new Set<number>()
   const stops = new Map<number, number>()
+  const incomingLeaderById = incomingLaneLeaderLookup(vehicles)
 
   for (const vehicle of vehicles) {
     if (vehicle.ownedZoneKeys.length === 0) {
@@ -183,7 +185,15 @@ export function updateMovementReservations(
     if (!release) continue
     if (grantExpired) {
       expiredVehicleIds.add(vehicle.id)
-      if (vehicle.active && vehicle.plannedMovement !== null) {
+      if (
+        vehicle.active
+        && vehicle.plannedMovement !== null
+        && !incomingLaneBlocked(
+          vehicle,
+          vehicle.plannedMovement,
+          incomingLeaderById,
+        )
+      ) {
         stops.set(vehicle.id, vehicle.plannedMovement.entryProgress)
       }
     }
@@ -234,7 +244,11 @@ export function updateMovementReservations(
   )
 
   for (const request of requests) {
-    const blockedOnIncomingLane = incomingLaneBlocked(request, vehiclesByLane)
+    const blockedOnIncomingLane = incomingLaneBlocked(
+      request.vehicle,
+      request.movement,
+      incomingLeaderById,
+    )
     const blocked = blockedOnIncomingLane
       || outgoingLaneBlocked(request, vehiclesByLane)
       || request.zoneKeys.some((key) => reservations.has(key))
