@@ -8,8 +8,8 @@ Endless City is an interactive low-poly WebGL city that streams a deterministic 
 
 ## Explore
 
-- Mouse: drag to pan, right-drag to orbit, and scroll to zoom.
-- Touch: drag with one finger to pan; pinch or drag with two fingers to orbit and zoom.
+- Mouse: drag to move and scroll to zoom. The viewing angle is fixed.
+- Touch: drag with one finger to move; pinch or drag with two fingers to move and zoom.
 - Interface: use **How to explore** to reopen the help panel. Performance statistics are opt-in; `?debug=1` shows them immediately.
 
 Traffic adapts once at startup to the viewport. High quality uses 49 vehicle slots, balanced uses 32, and viewports narrower than 768 CSS pixels use 20. Every profile retains eastbound, westbound, northbound, and southbound traffic.

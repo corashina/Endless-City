@@ -24,6 +24,8 @@
 
 - Modify `src/rendering/scene.ts`: define and apply the locked legacy MapControls configuration.
 - Create `tests/scene-controls.test.ts`: verify exact constraints and real MapControls behavior without WebGL.
+- Modify `index.html`: align the help panel with fixed-angle mouse and touch controls.
+- Modify `README.md`: document fixed-angle mouse and touch controls.
 - Modify `docs/superpowers/plans/2026-07-14-locked-legacy-camera.md`: check completed steps as evidence is produced.
 
 ### Task 1: Configure and verify the locked legacy camera
@@ -31,6 +33,8 @@
 **Files:**
 - Modify: `src/rendering/scene.ts`
 - Create: `tests/scene-controls.test.ts`
+- Modify: `index.html`
+- Modify: `README.md`
 - Modify: `docs/superpowers/plans/2026-07-14-locked-legacy-camera.md`
 
 **Interfaces:**
@@ -193,7 +197,7 @@ git diff --check
 
 Expected: typecheck passes, all test files pass, the production build succeeds with only the established chunk-size advisory, and diff check prints nothing.
 
-- [ ] **Step 6: Verify the production interaction**
+- [x] **Step 6: Verify the production interaction**
 
 Build and serve `dist`, then verify at desktop and mobile viewport sizes:
 
@@ -204,7 +208,7 @@ Build and serve `dist`, then verify at desktop and mobile viewport sizes:
 - traffic, floating-origin recentering, help UI, and responsive canvas remain operational;
 - console contains no warnings or errors.
 
-- [ ] **Step 7: Update evidence and commit**
+- [x] **Step 7: Update evidence and commit**
 
 Mark Steps 1–6 complete in this plan, inspect the final diff, and commit only the intended files:
 
