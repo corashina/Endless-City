@@ -222,6 +222,9 @@ const assignCandidate = (
   vehicle.traits = createDriverTraits(seed, vehicle.id, vehicle.lifecycle)
   vehicle.routeDecisionIndex = 0
   vehicle.offscreenStoppedSteps = 0
+  vehicle.requestAgeSteps = 0
+  vehicle.grantExpiresAtStep = null
+  vehicle.ownedZoneKeys = []
   vehicle.plannedMovement = null
   vehicle.turn = null
   vehicle.previousPose = {
@@ -267,6 +270,9 @@ export const createTrafficPool = (input: CreateTrafficPoolInput): VehicleState[]
       traits: createDriverTraits(input.seed, id, 0),
       routeDecisionIndex: 0,
       offscreenStoppedSteps: 0,
+      requestAgeSteps: 0,
+      grantExpiresAtStep: null,
+      ownedZoneKeys: [],
       plannedMovement: null,
       turn: null,
       previousPose: {
@@ -291,6 +297,9 @@ export const recycleTraffic = (input: RecycleTrafficInput): void => {
 
     vehicle.active = false
     vehicle.reservationKey = null
+    vehicle.requestAgeSteps = 0
+    vehicle.grantExpiresAtStep = null
+    vehicle.ownedZoneKeys = []
 
     for (let attempt = 0; attempt < RECYCLE_ATTEMPTS; attempt += 1) {
       const candidate = recycledCandidate(input, vehicle, attempt)

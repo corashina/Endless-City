@@ -14,6 +14,7 @@ import type {
 
 const CURVE_SEGMENTS = 64
 const INTERSECTION_APPROACH_DISTANCE = 10
+const RIGHT_TURN_HANDLE_SCALE = 0.25
 const FULL_TURN = Math.PI * 2
 
 const TRANSITIONS: Readonly<Record<Direction, Readonly<Record<Maneuver, Direction>>>> = {
@@ -125,14 +126,30 @@ export function planMovement(
     const outgoingVector = vectorForDirection(direction)
     const chordLength = Math.hypot(endPoint.x - startPoint.x, endPoint.z - startPoint.z)
     const handleLength = chordLength / 2
-    const firstControl = {
-      x: startPoint.x + incomingVector.x * handleLength,
-      z: startPoint.z + incomingVector.z * handleLength,
-    }
-    const secondControl = {
-      x: endPoint.x - outgoingVector.x * handleLength,
-      z: endPoint.z - outgoingVector.z * handleLength,
-    }
+    const incomingLaneOffset = RIGHT_TURN_HANDLE_SCALE * Math.abs(incomingVector.x === 0
+      ? startPoint.x - intersection.point.x
+      : startPoint.z - intersection.point.z)
+    const outgoingLaneOffset = RIGHT_TURN_HANDLE_SCALE * Math.abs(outgoingVector.x === 0
+      ? endPoint.x - intersection.point.x
+      : endPoint.z - intersection.point.z)
+    const firstControl = maneuver === 'right'
+      ? {
+          x: startPoint.x + incomingVector.x * incomingLaneOffset,
+          z: startPoint.z + incomingVector.z * incomingLaneOffset,
+        }
+      : {
+          x: startPoint.x + incomingVector.x * handleLength,
+          z: startPoint.z + incomingVector.z * handleLength,
+        }
+    const secondControl = maneuver === 'right'
+      ? {
+          x: endPoint.x - outgoingVector.x * outgoingLaneOffset,
+          z: endPoint.z - outgoingVector.z * outgoingLaneOffset,
+        }
+      : {
+          x: endPoint.x - outgoingVector.x * handleLength,
+          z: endPoint.z - outgoingVector.z * handleLength,
+        }
 
     for (let index = 0; index <= CURVE_SEGMENTS; index += 1) {
       const parameter = index / CURVE_SEGMENTS

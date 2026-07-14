@@ -35,6 +35,20 @@ describe('intersection routing', () => {
     else expect(end.x).toBeCloseTo(-16, 6)
   })
 
+  it('keeps opposite right turns in distinct intersection corners', () => {
+    const eastRight = planMovement({ direction: 'east', line: 0 }, -31, 'right', 5)
+    const westRight = planMovement({ direction: 'west', line: 0 }, 9, 'right', 5)
+    const minimumCenterlineDistance = Math.min(
+      ...eastRight.samples.flatMap((eastPose) =>
+        westRight.samples.map((westPose) =>
+          Math.hypot(eastPose.x - westPose.x, eastPose.z - westPose.z))),
+    )
+
+    expect(eastRight.intersectionKey).toBe('0:0')
+    expect(westRight.intersectionKey).toBe('0:0')
+    expect(minimumCenterlineDistance).toBeGreaterThan(4.5)
+  })
+
   it('produces finite smooth poses across a complete turn', () => {
     const movement = planMovement({ direction: 'north', line: 2 }, 89, 'left', 5)
     const poses = Array.from({ length: 65 }, (_, index) =>
@@ -93,6 +107,9 @@ describe('intersection routing', () => {
       traits: createDriverTraits(1, 1, 0),
       routeDecisionIndex: 0,
       offscreenStoppedSteps: 0,
+      requestAgeSteps: 0,
+      grantExpiresAtStep: null,
+      ownedZoneKeys: [],
       plannedMovement: movement,
       turn: null,
       previousPose: { x: -31, z: -16, heading: headingForDirection('east') },

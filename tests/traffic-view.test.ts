@@ -27,6 +27,9 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     traits: createDriverTraits(1, id, 0),
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
+    requestAgeSteps: 0,
+    grantExpiresAtStep: null,
+    ownedZoneKeys: [],
     plannedMovement: null,
     turn: null,
     previousPose: {

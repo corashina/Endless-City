@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BLOCK_SIZE, FIXED_STEP_SECONDS } from '../src/config'
 import { occupiedIntersectionKeys } from '../src/traffic/intersections'
 import { positionOnLane } from '../src/traffic/lanes'
+import { movementConflictZones } from '../src/traffic/movements'
 import { TrafficSimulation } from '../src/traffic/simulation'
 import type {
   Direction,
@@ -15,8 +16,13 @@ const config: TrafficConfig = {
   timeHeadway: 1,
   maximumAcceleration: 2,
   comfortableBraking: 4,
+  emergencyBrakingFloor: 7,
   intersectionHalfExtent: 5,
   reservationLookAhead: 20,
+  reservationLifetimeSteps: 120,
+  movementCorridorHalfWidth: 2.25,
+  stoppedSpeedThreshold: 0.25,
+  offscreenStoppedTimeoutSteps: 720,
   protectedRadius: 300,
   simulationRadius: 420,
 }
@@ -55,14 +61,28 @@ const assertNoFollowingOverlap = (vehicles: readonly VehicleState[]): void => {
   }
 }
 
-const assertNoSharedIntersectionZone = (vehicles: readonly VehicleState[]): void => {
-  const occupants = new Set<string>()
+const assertNoSharedMovementZone = (vehicles: readonly VehicleState[]): void => {
+  const claims = new Map<string, number>()
+
+  const claimZones = (vehicle: VehicleState, zoneKeys: readonly string[]): void => {
+    for (const key of zoneKeys) {
+      const claimantId = claims.get(key)
+      if (claimantId !== undefined && claimantId !== vehicle.id) {
+        throw new Error(`Movement zone ${key} is shared by ${claimantId} and ${vehicle.id}`)
+      }
+      claims.set(key, vehicle.id)
+    }
+  }
 
   for (const vehicle of vehicles) {
     if (!vehicle.active) continue
-    for (const key of occupiedIntersectionKeys(vehicle, config)) {
-      if (occupants.has(key)) throw new Error(`Intersection ${key} has multiple occupants`)
-      occupants.add(key)
+
+    claimZones(vehicle, vehicle.ownedZoneKeys)
+    if (vehicle.turn !== null) {
+      claimZones(vehicle, movementConflictZones(
+        vehicle.turn.movement,
+        config.movementCorridorHalfWidth,
+      ))
     }
   }
 }
@@ -140,7 +160,7 @@ describe('traffic simulation', () => {
       }
 
       assertNoFollowingOverlap(simulation.vehicles)
-      assertNoSharedIntersectionZone(simulation.vehicles)
+      assertNoSharedMovementZone(simulation.vehicles)
     }
 
     expect(simulation.vehicles).toEqual(duplicate.vehicles)

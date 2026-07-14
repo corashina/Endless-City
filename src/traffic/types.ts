@@ -65,6 +65,9 @@ export interface VehicleState {
   traits: DriverTraits
   routeDecisionIndex: number
   offscreenStoppedSteps: number
+  requestAgeSteps: number
+  grantExpiresAtStep: number | null
+  ownedZoneKeys: string[]
   plannedMovement: PlannedMovement | null
   turn: TurnState | null
   previousPose: VehiclePose
@@ -75,8 +78,13 @@ export interface TrafficConfig {
   readonly timeHeadway: number
   readonly maximumAcceleration: number
   readonly comfortableBraking: number
+  readonly emergencyBrakingFloor: number
   readonly intersectionHalfExtent: number
   readonly reservationLookAhead: number
+  readonly reservationLifetimeSteps: number
+  readonly movementCorridorHalfWidth: number
+  readonly stoppedSpeedThreshold: number
+  readonly offscreenStoppedTimeoutSteps: number
   readonly protectedRadius: number
   readonly simulationRadius: number
 }

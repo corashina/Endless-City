@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { stepFollowing } from '../src/traffic/following'
 import { positionOnLane } from '../src/traffic/lanes'
 import {
-  updateIntersectionReservations,
-  type IntersectionReservations,
-} from '../src/traffic/intersections'
+  updateMovementReservations,
+  type MovementReservations,
+} from '../src/traffic/movements'
 import { createDriverTraits } from '../src/traffic/random'
-import { headingForDirection } from '../src/traffic/routing'
+import { headingForDirection, planMovement } from '../src/traffic/routing'
 import type { TrafficConfig, VehicleState } from '../src/traffic/types'
 import type { Direction } from '../src/traffic/types'
 
@@ -15,8 +15,13 @@ const config: TrafficConfig = {
   timeHeadway: 1,
   maximumAcceleration: 2,
   comfortableBraking: 4,
+  emergencyBrakingFloor: 7,
   intersectionHalfExtent: 5,
   reservationLookAhead: 20,
+  reservationLifetimeSteps: 120,
+  movementCorridorHalfWidth: 2.25,
+  stoppedSpeedThreshold: 0.25,
+  offscreenStoppedTimeoutSteps: 720,
   protectedRadius: 100,
   simulationRadius: 200,
 }
@@ -41,6 +46,9 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     traits: createDriverTraits(1, id, 0),
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
+    requestAgeSteps: 0,
+    grantExpiresAtStep: null,
+    ownedZoneKeys: [],
     plannedMovement: null,
     turn: null,
     previousPose: {
@@ -63,73 +71,6 @@ const intersectsConflictZone = (state: VehicleState): boolean => {
 }
 
 describe('intersection reservations', () => {
-  it('breaks equal-distance perpendicular requests by stable vehicle id', () => {
-    const eastbound = vehicle({ id: 2 })
-    const northbound = vehicle({ id: 1, lane: { direction: 'north', line: 0 } })
-    const reservations: IntersectionReservations = new Map()
-
-    const intersectionStops = updateIntersectionReservations(
-      [eastbound, northbound],
-      reservations,
-      config,
-    )
-
-    expect(reservations).toEqual(new Map([['0:0', northbound.id]]))
-    expect(northbound.reservationKey).toBe('0:0')
-    expect(eastbound.reservationKey).toBeNull()
-    expect(intersectionStops).toEqual(new Map([[eastbound.id, -25]]))
-  })
-
-  it('gives a closer request priority over a lower vehicle id', () => {
-    const closerEastbound = vehicle({ id: 9, progress: -29 })
-    const fartherNorthbound = vehicle({
-      id: 1,
-      lane: { direction: 'north', line: 0 },
-      progress: -31,
-    })
-    const reservations: IntersectionReservations = new Map()
-
-    const intersectionStops = updateIntersectionReservations(
-      [fartherNorthbound, closerEastbound],
-      reservations,
-      config,
-    )
-
-    expect(reservations.get('0:0')).toBe(closerEastbound.id)
-    expect(intersectionStops).toEqual(new Map([[fartherNorthbound.id, -25]]))
-  })
-
-  it('collects requests only within the configured look-ahead', () => {
-    const distantVehicle = vehicle({ progress: -48 })
-    const reservations: IntersectionReservations = new Map()
-
-    const intersectionStops = updateIntersectionReservations(
-      [distantVehicle],
-      reservations,
-      config,
-    )
-
-    expect(reservations).toEqual(new Map())
-    expect(intersectionStops).toEqual(new Map())
-    expect(distantVehicle.reservationKey).toBeNull()
-  })
-
-  it('releases a holder only after its rear bumper leaves the conflict zone', () => {
-    const holder = vehicle({ id: 3, progress: -13, reservationKey: '0:0' })
-    const reservations: IntersectionReservations = new Map([['0:0', holder.id]])
-
-    updateIntersectionReservations([holder], reservations, config)
-
-    expect(reservations.get('0:0')).toBe(holder.id)
-    expect(holder.reservationKey).toBe('0:0')
-
-    holder.progress = -12.99
-    updateIntersectionReservations([holder], reservations, config)
-
-    expect(reservations).toEqual(new Map())
-    expect(holder.reservationKey).toBeNull()
-  })
-
   it.each([
     ['east', 'north'],
     ['east', 'south'],
@@ -155,11 +96,32 @@ describe('intersection reservations', () => {
       speed: 8,
     })
     const vehicles = [horizontal, vertical]
-    const reservations: IntersectionReservations = new Map()
+    const reservations: MovementReservations = new Map()
+    for (const state of vehicles) {
+      state.plannedMovement = planMovement(
+        state.lane,
+        state.progress,
+        'straight',
+        config.intersectionHalfExtent,
+      )
+    }
 
     for (let step = 0; step < 600; step += 1) {
-      const intersectionStops = updateIntersectionReservations(vehicles, reservations, config)
-      stepFollowing(vehicles, 1 / 60, config, intersectionStops)
+      const { stops } = updateMovementReservations(vehicles, reservations, config, step)
+      stepFollowing(vehicles, 1 / 60, config, stops)
+      for (const state of vehicles) {
+        const movement = state.plannedMovement!
+        if (state.turn === null && state.ownedZoneKeys.length > 0) {
+          if (state.progress >= movement.entryProgress) {
+            state.turn = {
+              movement,
+              distance: state.progress - movement.entryProgress,
+            }
+          }
+        } else if (state.turn !== null) {
+          state.turn.distance = Math.max(0, state.progress - movement.entryProgress)
+        }
+      }
 
       expect(intersectsConflictZone(horizontal) && intersectsConflictZone(vertical)).toBe(false)
     }

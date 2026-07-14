@@ -10,8 +10,13 @@ const config: TrafficConfig = {
   timeHeadway: 1,
   maximumAcceleration: 2,
   comfortableBraking: 4,
+  emergencyBrakingFloor: 7,
   intersectionHalfExtent: 5,
   reservationLookAhead: 20,
+  reservationLifetimeSteps: 120,
+  movementCorridorHalfWidth: 2.25,
+  stoppedSpeedThreshold: 0.25,
+  offscreenStoppedTimeoutSteps: 720,
   protectedRadius: 100,
   simulationRadius: 200,
 }
@@ -36,6 +41,9 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     traits: createDriverTraits(1, id, 0),
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
+    requestAgeSteps: 0,
+    grantExpiresAtStep: null,
+    ownedZoneKeys: [],
     plannedMovement: null,
     turn: null,
     previousPose: {

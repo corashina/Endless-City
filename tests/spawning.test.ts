@@ -17,8 +17,13 @@ const config: TrafficConfig = {
   timeHeadway: 1,
   maximumAcceleration: 2,
   comfortableBraking: 4,
+  emergencyBrakingFloor: 7,
   intersectionHalfExtent: 5,
   reservationLookAhead: 20,
+  reservationLifetimeSteps: 120,
+  movementCorridorHalfWidth: 2.25,
+  stoppedSpeedThreshold: 0.25,
+  offscreenStoppedTimeoutSteps: 720,
   protectedRadius: 300,
   simulationRadius: 420,
 }
@@ -50,6 +55,9 @@ const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
     traits: createDriverTraits(1, id, 0),
     routeDecisionIndex: 0,
     offscreenStoppedSteps: 0,
+    requestAgeSteps: 0,
+    grantExpiresAtStep: null,
+    ownedZoneKeys: [],
     plannedMovement: null,
     turn: null,
     previousPose: {
@@ -109,6 +117,9 @@ describe('deterministic traffic spawning', () => {
       expect(state.traits).toEqual(createDriverTraits(12345, state.id, 0))
       expect(state.routeDecisionIndex).toBe(0)
       expect(state.offscreenStoppedSteps).toBe(0)
+      expect(state.requestAgeSteps).toBe(0)
+      expect(state.grantExpiresAtStep).toBeNull()
+      expect(state.ownedZoneKeys).toEqual([])
       expect(state.plannedMovement).toBeNull()
       expect(state.turn).toBeNull()
       expect(state.previousPose).toEqual(poseForVehicle(state))
@@ -188,6 +199,9 @@ describe('deterministic traffic spawning', () => {
     expect(recycled.traits).toEqual(createDriverTraits(12345, recycled.id, 4))
     expect(recycled.routeDecisionIndex).toBe(0)
     expect(recycled.offscreenStoppedSteps).toBe(0)
+    expect(recycled.requestAgeSteps).toBe(0)
+    expect(recycled.grantExpiresAtStep).toBeNull()
+    expect(recycled.ownedZoneKeys).toEqual([])
     expect(recycled.plannedMovement).toBeNull()
     expect(recycled.turn).toBeNull()
     expect(recycled.previousPose).toEqual(poseForVehicle(recycled))
