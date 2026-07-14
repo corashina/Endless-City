@@ -31,8 +31,8 @@ async function validateStagedGlb(path: string, id: string): Promise<void> {
     throw new Error(`${id}: generated scene has no renderable mesh`)
   }
   const bounds = getBounds(root)
-  if (bounds.min[0] < PLOT_MIN - 0.05 || bounds.max[0] > PLOT_MAX + 0.05
-    || bounds.min[2] < PLOT_MIN - 0.05 || bounds.max[2] > PLOT_MAX + 0.05) {
+  if (bounds.min[0] < PLOT_MIN || bounds.max[0] > PLOT_MAX
+    || bounds.min[2] < PLOT_MIN || bounds.max[2] > PLOT_MAX) {
     throw new Error(`${id}: generated geometry is outside the plot`)
   }
   for (const texture of document.getRoot().listTextures()) {
@@ -66,11 +66,15 @@ async function replaceOutputSet(
   outputDir: string,
   fileOperations: ReplacementFileOperations,
 ): Promise<BuildOutput[]> {
-  const replacementDir = await mkdtemp(join(outputDir, '.remix-replacement-'))
-  const backupDir = await mkdtemp(join(outputDir, '.remix-backup-'))
+  const transactionRoot = await mkdtemp(join(outputDir, '.remix-recovery-'))
+  const replacementDir = join(transactionRoot, 'replacement')
+  const backupDir = join(transactionRoot, 'backup')
   const backedUp = new Set<string>()
   const installed = new Set<string>()
+  let cleanupTransaction = true
   try {
+    await mkdir(replacementDir)
+    await mkdir(backupDir)
     for (const output of staged) {
       await copyFile(output.path, join(replacementDir, basename(output.path)))
     }
@@ -92,13 +96,31 @@ async function replaceOutputSet(
         installed.add(output.id)
       }
     } catch (replacementError) {
+      const rollbackErrors: unknown[] = []
       for (const output of [...staged].reverse()) {
         const filename = basename(output.path)
         const finalPath = join(outputDir, filename)
-        if (installed.has(output.id)) await rm(finalPath, { force: true })
-        if (backedUp.has(output.id)) {
-          await fileOperations.rename(join(backupDir, filename), finalPath)
+        if (installed.has(output.id)) {
+          try {
+            await rm(finalPath, { force: true })
+          } catch (error) {
+            rollbackErrors.push(error)
+          }
         }
+        if (backedUp.has(output.id)) {
+          try {
+            await fileOperations.rename(join(backupDir, filename), finalPath)
+          } catch (error) {
+            rollbackErrors.push(error)
+          }
+        }
+      }
+      if (rollbackErrors.length > 0) {
+        cleanupTransaction = false
+        throw new AggregateError(
+          [replacementError, ...rollbackErrors],
+          `Tile replacement failed and rollback was incomplete; recovery files retained at ${transactionRoot}`,
+        )
       }
       throw replacementError
     }
@@ -107,10 +129,7 @@ async function replaceOutputSet(
       path: join(outputDir, basename(output.path)),
     }))
   } finally {
-    await Promise.all([
-      rm(replacementDir, { recursive: true, force: true }),
-      rm(backupDir, { recursive: true, force: true }),
-    ])
+    if (cleanupTransaction) await rm(transactionRoot, { recursive: true, force: true })
   }
 }
 
