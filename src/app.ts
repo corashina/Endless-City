@@ -1,4 +1,3 @@
-import * as THREE from 'three'
 import { CameraController } from './camera/controller'
 import type { GridCoordinate } from './city/types'
 import {
@@ -20,6 +19,7 @@ import {
 } from './rendering/assets'
 import { chooseQualityProfile } from './rendering/quality'
 import { createScene as createSceneContext } from './rendering/scene'
+import { DirectionalShadowFollower } from './rendering/shadow-follower'
 import { TrafficView } from './rendering/traffic-view'
 import { consumeFixedSteps } from './traffic/following'
 import { TrafficSimulation } from './traffic/simulation'
@@ -467,8 +467,7 @@ export async function startApp(
         }
       },
     )
-    const shadowOffset = context.directionalLight.position.clone()
-      .sub(context.directionalLight.target.position)
+    const shadowFollower = new DirectionalShadowFollower(context.directionalLight)
     let accumulator = 0
     let previousTimestamp: number | undefined
 
@@ -516,13 +515,10 @@ export async function startApp(
         trafficView.sync(traffic.vehicles, cameraState.origin, stepResult.alpha)
       }
 
-      const shadowTarget = new THREE.Vector3(
+      shadowFollower.update(
         context.controls.target.x,
-        0,
         context.controls.target.z,
       )
-      context.directionalLight.target.position.copy(shadowTarget)
-      context.directionalLight.position.copy(shadowTarget).add(shadowOffset)
       context.renderer.render(context.scene, context.camera)
     }
 

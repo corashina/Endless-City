@@ -56,6 +56,12 @@ function createRunnableScene() {
   const camera = new THREE.PerspectiveCamera()
   camera.position.set(10, 100, 10)
   const directionalLight = new THREE.DirectionalLight()
+  directionalLight.position.set(-300, 750, -300)
+  directionalLight.shadow.camera.left = -180
+  directionalLight.shadow.camera.right = 180
+  directionalLight.shadow.camera.top = 180
+  directionalLight.shadow.camera.bottom = -180
+  directionalLight.shadow.mapSize.set(1024, 1024)
   scene.add(directionalLight, directionalLight.target)
   const dispose = vi.fn()
   const resize = vi.fn()
@@ -354,6 +360,55 @@ describe('startApp setup cleanup', () => {
     }
     requestAnimationFrame.mockRestore()
     cancelAnimationFrame.mockRestore()
+  })
+
+  it('renders with a texel-aligned directional shadow transform', async () => {
+    const canvas = document.createElement('canvas')
+    const scene = createRunnableScene()
+    const originalOffset = scene.context.directionalLight.position.clone()
+      .sub(scene.context.directionalLight.target.position)
+    const depthAxis = originalOffset.clone().normalize()
+    const horizontalAxis = new THREE.Vector3(0, 1, 0).cross(depthAxis).normalize()
+    const verticalAxis = depthAxis.clone().cross(horizontalAxis).normalize()
+    const texelSize = 360 / 1024
+    let targetAtRender: THREE.Vector3 | undefined
+    let lightAtRender: THREE.Vector3 | undefined
+    let frameCallback: FrameRequestCallback | undefined
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frameCallback = callback
+        return 91
+      })
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined)
+    const handle = await startApp({ canvas }, {
+      createScene: () => scene.context,
+      loadAssetCatalog: async () => createRunnableCatalog(),
+    })
+    const render = vi.mocked(scene.context.renderer.render)
+    render.mockImplementation(() => {
+      targetAtRender = scene.context.directionalLight.target.position.clone()
+      lightAtRender = scene.context.directionalLight.position.clone()
+    })
+
+    try {
+      scene.context.controls.target.set(12.5, 0, -8.25)
+      frameCallback?.(1_000)
+
+      expect(render).toHaveBeenCalledOnce()
+      expect(targetAtRender).toBeDefined()
+      expect(lightAtRender).toBeDefined()
+      const horizontalSteps = targetAtRender!.dot(horizontalAxis) / texelSize
+      const verticalSteps = targetAtRender!.dot(verticalAxis) / texelSize
+      expect(horizontalSteps).toBeCloseTo(Math.round(horizontalSteps), 10)
+      expect(verticalSteps).toBeCloseTo(Math.round(verticalSteps), 10)
+      expect(lightAtRender!.clone().sub(targetAtRender!).distanceTo(originalOffset))
+        .toBeLessThan(1e-10)
+    } finally {
+      handle.dispose()
+      requestAnimationFrame.mockRestore()
+      cancelAnimationFrame.mockRestore()
+    }
   })
 
   it('installs a frozen debug acceptance snapshot at an exact startup coordinate and removes it on dispose', async () => {
