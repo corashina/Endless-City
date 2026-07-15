@@ -406,8 +406,8 @@ describe('startApp setup cleanup', () => {
         renderOrigin: { x: 6_000, z: -6_000 },
         localCamera: { x: 0, z: 0 },
         buildingPoolSize: 81,
-        vehicleSlotCount: 72,
-        activeVehicleCount: 72,
+        vehicleSlotCount: 108,
+        activeVehicleCount: 108,
         activeDirections: ['east', 'north', 'south', 'west'],
       })
       expect(snapshot.visibleAssignments).toHaveLength(81)

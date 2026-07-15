@@ -58,7 +58,7 @@ describe('planTileAssignments', () => {
 const profile = {
   id: 'high',
   tileDiameter: 9,
-  trafficCount: 72,
+  trafficCount: 108,
   maxPixelRatio: 1.5,
   shadowMapSize: 2048,
 } as const satisfies QualityProfile

@@ -73,7 +73,7 @@ A request is eligible inside the 20-unit look-ahead only when no physical vehicl
 
 `src/traffic/spawning.ts` keeps the simulation centered around the logical camera. Production uses the 300-unit fog-far distance as the protected radius and a 420-unit simulation radius, adding a two-block buffer. Visibility and both recycling boundaries use a conservative radial extent: `center distance - half vehicle length <= radius`. An active vehicle is normally removed only after its full conservative extent passes 420 units. As a deadlock safeguard, an off-screen vehicle below 0.25 units per second for 720 fixed steps, equal to 12 seconds, is also recycled. Any part of the vehicle reaching the protected radius, or resuming motion, resets that timer, so a visible car never recycles or teleports.
 
-Deterministic replacement candidates start with their complete conservative extent outside the protected radius on an approach route that crosses it, and are accepted only when personal front/rear gaps and intersection occupancy are safe. If no candidate is safe, the slot remains inactive and retries later. Stationary-camera coverage runs the 72-car profile for 216,000 fixed steps. Its acceptance floors require every 3,600-step sample after an 18,000-step warm-up to retain all 72 active slots, at least 18 visible cars, and at least 11 visible cars moving faster than 0.25 units per second. The 36,000-step moving-camera regression requires at least 18 visible cars at each one-minute sample and all four visible directions in every one-minute window.
+Deterministic replacement candidates start with their complete conservative extent outside the protected radius on an approach route that crosses it, and are accepted only when personal front/rear gaps and intersection occupancy are safe. If no candidate is safe, the slot remains inactive and retries later. Stationary-camera coverage runs a 72-vehicle regression fixture for 216,000 fixed steps. Its acceptance floors require every 3,600-step sample after an 18,000-step warm-up to retain all 72 active slots, at least 18 visible cars, and at least 11 visible cars moving faster than 0.25 units per second. The 36,000-step moving-camera regression requires at least 18 visible cars at each one-minute sample and all four visible directions in every one-minute window.
 
 ## Quality profiles
 
@@ -81,9 +81,9 @@ Deterministic replacement candidates start with their complete conservative exte
 
 | Profile | Selection | Tile window | Vehicle slots | Pixel-ratio cap | Shadow map |
 | --- | --- | ---: | ---: | ---: | ---: |
-| High | width ≥ 1200 and DPR ≤ 2 | 9×9 | 72 | 1.5 | 2048 |
-| Balanced | width 768–1199 or DPR > 2 | 7×7 | 48 | 1.25 | 1024 |
-| Mobile | width < 768 | 7×7 | 28 | 1 | 1024 |
+| High | width ≥ 1200 and DPR ≤ 2 | 9×9 | 108 | 1.5 | 2048 |
+| Balanced | width 768–1199 or DPR > 2 | 7×7 | 72 | 1.25 | 1024 |
+| Mobile | width < 768 | 7×7 | 42 | 1 | 1024 |
 
 Every traffic profile includes all four directions. `src/rendering/scene.ts` uses modern sRGB output, capped pixel ratio, fog, and profile-sized soft shadows.
 

@@ -6,7 +6,7 @@ describe('chooseQualityProfile', () => {
     expect(chooseQualityProfile({ width: 1440, devicePixelRatio: 1 })).toMatchObject({
       id: 'high',
       tileDiameter: 9,
-      trafficCount: 72,
+      trafficCount: 108,
       maxPixelRatio: 1.5,
       shadowMapSize: 2048,
     })
@@ -16,7 +16,7 @@ describe('chooseQualityProfile', () => {
     expect(chooseQualityProfile({ width: 900, devicePixelRatio: 2 })).toMatchObject({
       id: 'balanced',
       tileDiameter: 7,
-      trafficCount: 48,
+      trafficCount: 72,
       maxPixelRatio: 1.25,
       shadowMapSize: 1024,
     })
@@ -26,7 +26,7 @@ describe('chooseQualityProfile', () => {
     expect(chooseQualityProfile({ width: 390, devicePixelRatio: 3 })).toMatchObject({
       id: 'mobile',
       tileDiameter: 7,
-      trafficCount: 28,
+      trafficCount: 42,
       maxPixelRatio: 1,
       shadowMapSize: 1024,
     })

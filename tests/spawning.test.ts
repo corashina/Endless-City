@@ -112,7 +112,7 @@ const assertStartingSpeedFractions = (vehicles: readonly VehicleState[]): void =
 }
 
 describe('deterministic traffic spawning', () => {
-  it.each([72, 48, 28])('creates %i varied cars with balanced directions', (count) => {
+  it.each([108, 72, 42])('creates %i varied cars with balanced directions', (count) => {
     const vehicles = createTrafficPool({ count, seed: 12345, camera, prototypes, config })
     const counts = directions.map((direction) =>
       vehicles.filter((vehicle) => vehicle.lane.direction === direction).length)
