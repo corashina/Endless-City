@@ -43,7 +43,9 @@ bun run test
 bun run build
 ```
 
-The build command runs strict TypeScript checking and emits a production site to `dist/`. Deploy the contents of `dist/` to any static host. The application uses root-relative URLs, so host it at the domain or configured site root.
+The build command runs strict TypeScript checking and emits a production site to `dist/`. The generated artifact is configured for `/Endless-City/`, matching this repository's GitHub Pages project URL; change the Vite base before hosting it at a different path.
+
+Pushes to `master` run `.github/workflows/deploy.yml`, which builds and publishes `dist/`. In the repository's **Settings → Pages**, set **Source** to **GitHub Actions** so the compiled site is deployed instead of the repository source files.
 
 ## Project structure
 
@@ -56,8 +58,6 @@ The build command runs strict TypeScript checking and emits a production site to
 - `tests/` — deterministic unit, integration, lifecycle, and existing-asset contract tests.
 - `js/clusters/` — original runtime assets plus the 12 repository-derived remix GLBs.
 - `tools/tiles/` — validated recipes, offline GLB compiler, and local review gallery.
-- `docs/architecture.md` — maintainer guide to streaming, traffic, rendering, and errors.
-- `docs/legacy-audit.md` — original failure analysis and replacement invariants.
 
 ## Asset constraint
 

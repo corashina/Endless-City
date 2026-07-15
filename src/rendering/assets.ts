@@ -5,9 +5,16 @@ import { BUILDING_CATALOG } from '../city/layout'
 import type { BuildingId } from '../city/types'
 import type { Direction, VehiclePrototypeMetadata } from '../traffic/types'
 
-const ASSET_BASE_URL = '/clusters'
 export const TOTAL_ASSET_REQUESTS = BUILDING_CATALOG.length + 2
 const DIRECTIONS: readonly Direction[] = ['east', 'west', 'north', 'south']
+
+export function resolveAssetUrl(
+  filename: string,
+  baseUrl: string = import.meta.env.BASE_URL,
+): string {
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  return `${normalizedBaseUrl}clusters/${filename}`
+}
 
 export interface AssetProgress {
   readonly loaded: number
@@ -186,9 +193,9 @@ export async function loadAssetCatalogWithLoader(
 ): Promise<AssetCatalog> {
   const buildingIds = BUILDING_CATALOG.map(({ id }) => id)
   const urls = [
-    `${ASSET_BASE_URL}/road.glb`,
-    ...buildingIds.map((id) => `${ASSET_BASE_URL}/${id}.glb`),
-    `${ASSET_BASE_URL}/cars.gltf`,
+    resolveAssetUrl('road.glb'),
+    ...buildingIds.map((id) => resolveAssetUrl(`${id}.glb`)),
+    resolveAssetUrl('cars.gltf'),
   ]
   let loaded = 0
   const results = await Promise.allSettled(urls.map(async (url) => {

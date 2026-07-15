@@ -1,0 +1,42 @@
+name: Deploy Endless City to GitHub Pages
+
+on:
+  push:
+    branches: ['master']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Test deployment contracts
+        run: bun run test tests/deployment.test.ts tests/assets.test.ts
+      - name: Build
+        run: bun run build
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: './dist'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

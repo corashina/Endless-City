@@ -10,6 +10,7 @@ import {
   TOTAL_ASSET_REQUESTS,
   type AssetProgress,
 } from '../src/rendering/assets'
+import * as assetsModule from '../src/rendering/assets'
 
 interface GltfNode {
   readonly extras?: { readonly x?: unknown; readonly z?: unknown }
@@ -54,6 +55,16 @@ describe('existing asset disk contracts', () => {
 })
 
 describe('asset loading contracts', () => {
+  it('resolves model URLs below the configured site base', () => {
+    const resolveAssetUrl = (assetsModule as unknown as {
+      readonly resolveAssetUrl?: (filename: string, baseUrl: string) => string
+    }).resolveAssetUrl
+
+    expect(resolveAssetUrl).toBeTypeOf('function')
+    expect(resolveAssetUrl?.('road.glb', '/Endless-City/'))
+      .toBe('/Endless-City/clusters/road.glb')
+  })
+
   it('preserves the required road request failure as the error cause', async () => {
     const roadFailure = new Error('road request failed')
     const loader = {
