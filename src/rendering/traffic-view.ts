@@ -8,6 +8,8 @@ import {
 import type { VehiclePose, VehicleState } from '../traffic/types'
 import type { AssetCatalog } from './assets'
 
+const WORLD_UP = new THREE.Vector3(0, 1, 0)
+
 export function interpolatedVehiclePose(
   vehicle: VehicleState,
   alpha: number,
@@ -24,13 +26,14 @@ export function interpolatedVehiclePose(
 interface VehicleSlot {
   prototypeId: string
   object: THREE.Object3D
-  baseRotationY: number
+  baseQuaternion: THREE.Quaternion
 }
 
 export class TrafficView {
   readonly root = new THREE.Group()
 
   private readonly slots: VehicleSlot[]
+  private readonly routeYaw = new THREE.Quaternion()
 
   constructor(
     scene: THREE.Scene,
@@ -56,20 +59,28 @@ export class TrafficView {
         this.slots[index] = replacement
       }
 
-      const object = this.slots[index]!.object
+      const slotState = this.slots[index]!
+      const object = slotState.object
       object.visible = vehicle.active
       if (!vehicle.active) continue
 
       const pose = interpolatedVehiclePose(vehicle, alpha)
       object.position.set(pose.x - origin.x, object.position.y, pose.z - origin.z)
-      object.rotation.y = this.slots[index]!.baseRotationY
-        + headingForDirection(vehicle.nativeDirection)
-        - pose.heading
+      const yaw = shortestAngleDelta(
+        pose.heading,
+        headingForDirection(vehicle.nativeDirection),
+      )
+      this.routeYaw.setFromAxisAngle(WORLD_UP, yaw)
+      object.quaternion.copy(slotState.baseQuaternion).premultiply(this.routeYaw)
     }
   }
 
   private createSlot(prototypeId: string): VehicleSlot {
     const object = this.assets.cloneVehicle(prototypeId) ?? new THREE.Group()
-    return { prototypeId, object, baseRotationY: object.rotation.y }
+    return {
+      prototypeId,
+      object,
+      baseQuaternion: object.quaternion.clone(),
+    }
   }
 }

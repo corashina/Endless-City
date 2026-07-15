@@ -6,11 +6,38 @@ import { positionOnLane } from '../src/traffic/lanes'
 import { createDriverTraits } from '../src/traffic/random'
 import {
   headingForDirection,
+  movementPoseAt,
   planMovement,
   poseForVehicle,
   shortestAngleDelta,
 } from '../src/traffic/routing'
-import type { VehicleState } from '../src/traffic/types'
+import type { Direction, Maneuver, VehicleState } from '../src/traffic/types'
+
+const WORLD_UP = new THREE.Vector3(0, 1, 0)
+const LOCAL_NOSE = new THREE.Vector3(0, 0, 1)
+const DIRECTIONS: readonly Direction[] = ['east', 'west', 'north', 'south']
+const MANEUVERS: readonly Maneuver[] = ['left', 'right']
+
+const vectorForDirection = (direction: Direction): THREE.Vector3 => {
+  switch (direction) {
+    case 'east': return new THREE.Vector3(1, 0, 0)
+    case 'west': return new THREE.Vector3(-1, 0, 0)
+    case 'north': return new THREE.Vector3(0, 0, 1)
+    case 'south': return new THREE.Vector3(0, 0, -1)
+  }
+}
+
+const authoredQuaternionFor = (direction: Direction): THREE.Quaternion => {
+  if (direction === 'south') {
+    return new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(-Math.PI, 0, -Math.PI),
+    )
+  }
+  return new THREE.Quaternion().setFromAxisAngle(
+    WORLD_UP,
+    Math.PI / 2 - headingForDirection(direction),
+  )
+}
 
 const vehicle = (overrides: Partial<VehicleState> = {}): VehicleState => {
   const id = overrides.id ?? 0
@@ -72,7 +99,13 @@ describe('interpolatedVehiclePose', () => {
   })
 })
 
-function createCatalog(): { catalog: AssetCatalog; cloneCounts: Map<string, number> } {
+function createCatalog(
+  configureClone: (clone: THREE.Group, id: string) => void = (clone, id) => {
+    clone.position.y = id === 'replacement' ? 5 : 3
+    clone.rotation.set(0.1, 0.2, 0.3)
+    clone.scale.set(2, 3, 4)
+  },
+): { catalog: AssetCatalog; cloneCounts: Map<string, number> } {
   const cloneCounts = new Map<string, number>()
   return {
     cloneCounts,
@@ -89,9 +122,7 @@ function createCatalog(): { catalog: AssetCatalog; cloneCounts: Map<string, numb
         cloneCounts.set(id, (cloneCounts.get(id) ?? 0) + 1)
         const clone = new THREE.Group()
         clone.name = id
-        clone.position.y = id === 'replacement' ? 5 : 3
-        clone.rotation.set(0.1, 0.2, 0.3)
-        clone.scale.set(2, 3, 4)
+        configureClone(clone, id)
         return clone
       },
       dispose() {},
@@ -100,7 +131,71 @@ function createCatalog(): { catalog: AssetCatalog; cloneCounts: Map<string, numb
 }
 
 describe('TrafficView', () => {
-  it('rotates an authored eastbound model to match a northbound route heading', () => {
+  const orientationCases = DIRECTIONS.flatMap(nativeDirection =>
+    DIRECTIONS.map(routeDirection => [nativeDirection, routeDirection] as const))
+
+  it.each(orientationCases)(
+    'faces %s-authored vehicle along a %s route',
+    (nativeDirection, routeDirection) => {
+      const scene = new THREE.Scene()
+      const { catalog } = createCatalog((clone) => {
+        clone.quaternion.copy(authoredQuaternionFor(nativeDirection))
+      })
+      const state = vehicle({
+        prototypeId: `car-${nativeDirection}`,
+        nativeDirection,
+        lane: { direction: routeDirection, line: 0 },
+      })
+      const view = new TrafficView(scene, catalog, [state])
+
+      view.sync([state], { x: 0, z: 0 }, 1)
+
+      const worldNose = LOCAL_NOSE.clone().applyQuaternion(view.root.children[0]!.quaternion)
+      expect(worldNose.dot(vectorForDirection(routeDirection))).toBeCloseTo(1, 10)
+    },
+  )
+
+  const turnCases = DIRECTIONS.flatMap(direction =>
+    MANEUVERS.map(maneuver => [direction, maneuver] as const))
+
+  it.each(turnCases)(
+    'keeps a %s-authored vehicle aligned through its %s turn',
+    (incomingDirection, maneuver) => {
+      const movement = planMovement(
+        { direction: incomingDirection, line: 0 },
+        incomingDirection === 'east' || incomingDirection === 'north' ? -31 : 9,
+        maneuver,
+        5,
+      )
+      const state = vehicle({
+        prototypeId: `car-${incomingDirection}`,
+        nativeDirection: incomingDirection,
+        lane: movement.incomingLane,
+        turn: { movement, distance: 0 },
+      })
+      const scene = new THREE.Scene()
+      const { catalog } = createCatalog((clone) => {
+        clone.quaternion.copy(authoredQuaternionFor(incomingDirection))
+      })
+      const view = new TrafficView(scene, catalog, [state])
+
+      for (let index = 0; index <= 64; index += 1) {
+        state.turn!.distance = movement.length * index / 64
+        view.sync([state], { x: 0, z: 0 }, 1)
+        const pose = movementPoseAt(movement, state.turn!.distance)
+        const expectedTangent = new THREE.Vector3(
+          Math.cos(pose.heading),
+          0,
+          Math.sin(pose.heading),
+        )
+        const worldNose = LOCAL_NOSE.clone()
+          .applyQuaternion(view.root.children[0]!.quaternion)
+        expect(worldNose.dot(expectedTangent)).toBeCloseTo(1, 10)
+      }
+    },
+  )
+
+  it('composes route yaw with the complete authored orientation', () => {
     const scene = new THREE.Scene()
     const { catalog } = createCatalog()
     const state = vehicle({
@@ -111,7 +206,13 @@ describe('TrafficView', () => {
 
     view.sync([state], { x: 0, z: 0 }, 1)
 
-    expect(view.root.children[0]!.rotation.y).toBeCloseTo(0.2 - Math.PI / 2)
+    const authoredQuaternion = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(0.1, 0.2, 0.3),
+    )
+    const routeYaw = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, -Math.PI / 2)
+    const expectedQuaternion = authoredQuaternion.premultiply(routeYaw).normalize()
+    expect(view.root.children[0]!.quaternion.clone().normalize()
+      .angleTo(expectedQuaternion)).toBeCloseTo(0, 10)
   })
 
   it('allocates one authored clone per simulation slot and reuses it during sync', () => {
@@ -133,7 +234,11 @@ describe('TrafficView', () => {
     expect(cloneCounts).toEqual(new Map([['car', 1], ['van', 1]]))
     expect(firstClone.visible).toBe(true)
     expect(firstClone.position.toArray()).toEqual([9, 3, -11])
-    expect(firstClone.rotation.toArray().slice(0, 3)).toEqual([0.1, 0.2, 0.3])
+    const authoredQuaternion = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(0.1, 0.2, 0.3),
+    ).normalize()
+    expect(firstClone.quaternion.clone().normalize()
+      .angleTo(authoredQuaternion)).toBeCloseTo(0, 10)
     expect(firstClone.scale.toArray()).toEqual([2, 3, 4])
     expect(inactiveClone.visible).toBe(false)
   })
@@ -159,7 +264,11 @@ describe('TrafficView', () => {
       ['replacement', 1],
     ]))
     expect(replacement.position.toArray()).toEqual([14, 5, -16])
-    expect(replacement.rotation.toArray().slice(0, 3)).toEqual([0.1, 0.2, 0.3])
+    const authoredQuaternion = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(0.1, 0.2, 0.3),
+    ).normalize()
+    expect(replacement.quaternion.clone().normalize()
+      .angleTo(authoredQuaternion)).toBeCloseTo(0, 10)
     expect(replacement.scale.toArray()).toEqual([2, 3, 4])
   })
 })
