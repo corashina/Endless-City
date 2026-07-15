@@ -83,8 +83,8 @@ The existing application error handling catches startup failures and reports the
 
 Add focused unit tests for `DirectionalShadowFollower`:
 
-- sub-texel target movement keeps the snapped center fixed;
-- crossing a boundary moves the center by one light-space texel;
+- sub-texel target movement keeps the light-space horizontal and vertical center fixed;
+- crossing a boundary moves the projected center by one light-space texel;
 - diagonal movement snaps on both light-space axes;
 - 2048 and 1024 maps produce their configured texel steps;
 - the light-to-target offset stays unchanged after updates;
