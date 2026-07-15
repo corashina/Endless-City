@@ -1,6 +1,44 @@
-models/
+# Dependencies
 node_modules/
+
+# Build and test output
 dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+
+# Logs and runtime output
+*.log
+*.err
+*.pid
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
+
+# Editor and operating-system files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local tooling and worktrees
+.agents/
+.codex/
 .codex-http.*
 .superpowers/
+docs/superpowers/
 .worktrees/
+
+# Local model assets
+models/
